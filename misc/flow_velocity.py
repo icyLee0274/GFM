@@ -21,7 +21,7 @@ class FlowVelocity(nn.Module):
 
 
 class FlowVelocityDeep3(nn.Module):
-    def __init__(self, dim: int = 2, h: int = 64):
+    def __init__(self, dim: int = 2, h: int = 128):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(dim + 1, h), nn.ELU(),

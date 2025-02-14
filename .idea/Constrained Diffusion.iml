@@ -3,7 +3,6 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/FlowMatching" />
-      <excludeFolder url="file://$MODULE_DIR$/IneqNotes" />
       <excludeFolder url="file://$MODULE_DIR$/Literatures" />
       <excludeFolder url="file://$MODULE_DIR$/Manipulability" />
       <excludeFolder url="file://$MODULE_DIR$/example-out" />

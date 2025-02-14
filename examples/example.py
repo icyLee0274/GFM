@@ -1,30 +1,37 @@
+from sys import prefix
+
 import torch, os
 from torch import nn, tensor, Tensor
 from torch.utils.data import DataLoader, TensorDataset
 
+from misc import *
+from CvxIneq import *
+
 __all__ = ["Example"]
 
-from CvxIneq import GaugeMap
-from misc import ConstrainedSet
-from misc.mmd import mmd_square
+from misc.flow_velocity import FlowVelocityDeep3
 
 
 class Example:
 
-    def __init__(self, args):
+    def __init__(self, args, dim: int):
         self.example = args.example
         self.device = args.device
+        self.dim = dim
+        self.norm = args.norm
         self.gen_sample = args.gen_sample
         self.n_sample = args.n_sample
         self.n_epoch = args.n_epoch
         self.batch_size = args.batch_size
         self.n_gen = args.n_gen
         self.n_step = args.n_step
+        self.deep = args.deep
         self.hidden = args.hidden
         self.repeat = args.repeat
         self.output = args.output
         self.method = args.method
         self.verbose = args.verbose
+        self.append = args.append
         # fields for to be defined by implementations
         self.velocity = None
         self.domain: ConstrainedSet | None = None
@@ -39,13 +46,68 @@ class Example:
     def init_domain(self):
         raise NotImplementedError
 
-    def init_training(self):
+    def data_distribution(self):
         raise NotImplementedError
+
+    def init_prior(self, loc: Tensor | float, scale: Tensor | float):
+        if self.method == "gauge_mirror":
+            self.prior_dist = torch.distributions.MultivariateNormal(
+                torch.zeros(self.dim, device=self.device),
+                torch.eye(self.dim, device=self.device),
+            )
+        elif self.method.startswith("gauge"):
+            self.prior_dist = UnitBallUniform(self.dim)
+        else:
+            if loc is not Tensor: loc = torch.full([self.dim], loc, dtype=torch.float32, device=self.device)
+            if scale is not Tensor: scale = torch.full([self.dim], scale, dtype=torch.float32, device=self.device)
+            self.prior_dist = HyperBoxUniform(loc.to(self.device), scale.to(self.device))
+
+    def init_training(self):
+        if self.gen_sample:
+            data_dist = self.data_distribution()
+            self.true_samples = data_dist.sample(torch.Size([self.n_sample]))
+            if self.verbose: print(f"Samples generated: {self.n_sample}.")
+        else:
+            self.true_samples = torch.load(os.path.join(self.output, f"true_samples.pt"))
+            if self.verbose: print("Samples loaded.")
+        if self.method == "gauge_mirror":
+            if self.norm == "L2":
+                self.training_samples = unit_ball_mirror_map(self.gauge_map.to_disk(self.true_samples))
+            else:
+                self.training_samples = unit_cube_mirror_map(self.gauge_map.to_disk(self.true_samples))
+        elif self.method.startswith("gauge"):
+            self.training_samples = self.gauge_map.to_disk(self.true_samples)
+        else:
+            self.training_samples = self.true_samples
+        self.velocity = FlowVelocityDeep3(self.dim, self.hidden) if self.deep else FlowVelocity(self.dim, self.hidden)
+
+    def load_model(self):
+        match self.method:
+            case "vanilla" | "reflect" | "project":
+                prefix = "vanilla"
+            case "gauge_vanilla" | "gauge_reflect" | "gauge_project":
+                prefix = "gauge"
+            case "gauge_mirror":
+                prefix = "mirror"
+        self.velocity = torch.load(os.path.join(self.output, f"{prefix}_velocity{'_deep' if self.deep else ''}.pt"),
+                                   map_location=self.device)
+
+    def save_model(self):
+
+        match self.method:
+            case "vanilla" | "reflect" | "project":
+                prefix = "vanilla"
+            case "gauge_vanilla" | "gauge_reflect" | "gauge_project":
+                prefix = "gauge"
+            case "gauge_mirror":
+                prefix = "mirror"
+        torch.save(self.velocity, os.path.join(self.output, f"{prefix}_velocity{'_deep' if self.deep else ''}.pt"))
 
     def train(self):
         self.init_training()
         opt = torch.optim.Adam(self.velocity.parameters(), lr=1e-3)
         loss = nn.MSELoss()
+        # loss = nn.L1Loss
         dl = DataLoader(TensorDataset(self.training_samples),
                         batch_size=self.batch_size, shuffle=True)
         for epoch in range(self.n_epoch):
@@ -64,20 +126,25 @@ class Example:
         raise NotImplementedError
 
     def generate(self):
+        if not os.path.exists(os.path.join(self.output, f"{self.method_name()}_gen")):
+            os.mkdir(os.path.join(self.output, f"{self.method_name()}_gen"))
         for i in range(self.repeat):
             t = self.gen0()
-            torch.save(self.gen_x_1, os.path.join(self.output, f"{self.method}_gen{i}.pt"))
+            torch.save(self.gen_x_1, os.path.join(self.output, f"{self.method_name()}_gen/{i}.pt"))
             if self.verbose:
                 print(f"Generated {i} in {t:.2f}s.")
 
     def generate_test(self):
         import pandas as pd, ite
 
+        if not os.path.exists(os.path.join(self.output, f"{self.method_name()}_gen")):
+            os.mkdir(os.path.join(self.output, f"{self.method_name()}_gen"))
+
         co = ite.cost.BDKL_KnnK()
         stats = torch.zeros(self.repeat, 3)
         for i in range(self.repeat):
             t = self.gen0()
-            torch.save(self.gen_x_1, os.path.join(self.output, f"{self.method}_gen{i}.pt"))
+            torch.save(self.gen_x_1, os.path.join(self.output, f"{self.method_name()}_gen/{i}.pt"))
             if self.verbose: print(f"Generated {i} in {t:.2f}s.")
             with torch.no_grad():
                 kl = co.estimation(self.gen_x_1, self.true_samples)
@@ -85,6 +152,14 @@ class Example:
             stats[i, 0] = t
             stats[i, 1] = kl
             stats[i, 2] = mmd
-        (pd
-         .DataFrame(stats, columns=["Time", "KL", "MMD"])
-         .to_csv(os.path.join(self.output, f"{self.method}_stats.csv"), index=False))
+        if self.append and os.path.exists(os.path.join(self.output, f"{self.method_name()}_stats.csv")):
+            (pd
+             .DataFrame(stats, columns=["Time", "KL", "MMD"])
+             .to_csv(os.path.join(self.output, f"{self.method_name()}_stats.csv"), index=False, mode="a", header=False))
+        else:
+            (pd
+             .DataFrame(stats, columns=["Time", "KL", "MMD"])
+             .to_csv(os.path.join(self.output, f"{self.method_name()}_stats.csv"), index=False))
+
+    def method_name(self):
+        return f"{self.method}_deep" if self.deep else self.method

@@ -1,5 +1,7 @@
 import torch
 
+__all__ = ['mmd_square', 'gaussian_kernel']
+
 
 def gaussian_kernel(
         x: torch.Tensor,
@@ -41,13 +43,8 @@ def gaussian_kernel(
 
 def mmd_square(xs: torch.Tensor, ys: torch.Tensor, sigma: float = 1.0) -> float:
     m = xs.shape[0]
-    n = xs.shape[1]
-    uxx = -m
-    uyy = -n
-    uxy = 0
-    for i in range(m):
-        uxx += torch.sum(gaussian_kernel(xs[i], xs))
-        uxy += torch.sum(gaussian_kernel(xs[i], ys))
-    for j in range(n):
-        uyy += torch.sum(gaussian_kernel(ys[j], ys))
+    n = ys.shape[0]
+    uxx = gaussian_kernel(xs, xs, sigma).sum() - m
+    uxy = gaussian_kernel(xs, ys, sigma).sum()
+    uyy = gaussian_kernel(ys, ys, sigma).sum() - n
     return uxx / m / (m - 1) + uyy / n / (n - 1) - 2 * uxy / m / n

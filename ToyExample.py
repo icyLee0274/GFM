@@ -17,7 +17,7 @@ from CvxIneq import (
     unit_ball_dual_map as dual_map,
     ball_reflect,
     ball_reflect_velocity,
-    ball_projection, GaugeMap
+    ball_project, GaugeMap
 )
 
 from argparse import ArgumentParser
@@ -222,7 +222,7 @@ class ToyExample:
         z_t = odeint_reflect(
             self.reflect_model,
             z_0, torch.linspace(0, 1, self.n_step),
-            reflect_fn=ball_projection,
+            reflect_fn=ball_project,
             reflect_velocity_fn=ball_reflect_velocity,
         )
         z_1 = z_t[-1]

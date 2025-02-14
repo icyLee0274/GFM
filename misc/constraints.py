@@ -103,7 +103,7 @@ class LinearConstraint(ConstrainedSet):
 
             A * x <= b
 
-        :param A: A matrix of size K * p.
+        :param A: A matrix of size K * d.
         :param b: Constant vector of length K.
         """
         super().__init__()
