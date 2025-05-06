@@ -1,0 +1,3 @@
+name: "vanilla"
+transform: ~ # L2, L_inf, mirror_2, mirror_inf
+scale: 1

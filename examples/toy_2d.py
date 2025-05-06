@@ -7,7 +7,7 @@ from torch.distributions import MultivariateNormal
 
 from .example import Example
 from misc import *
-from CvxIneq import *
+from gfm import *
 
 
 class Toy2D(Example):
@@ -116,13 +116,13 @@ class Toy2D(Example):
                 raise NotImplementedError("Reflected method is not implemented.")
             case "project":
                 raise NotImplementedError("Projected method is not implemented.")
-            case "gauge_vanilla":
+            case "gauge_vanilla.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_reflect":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
-            case "gauge_project":
+            case "gauge_project.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_mirror":

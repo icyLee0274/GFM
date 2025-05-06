@@ -5,7 +5,7 @@ from torch import nn, tensor, Tensor
 from torch.utils.data import DataLoader, TensorDataset
 
 from misc import *
-from CvxIneq import *
+from gfm import *
 
 __all__ = ["Example"]
 
@@ -36,7 +36,7 @@ class Example:
         self.velocity = None
         self.domain: ConstrainedSet | None = None
         self.gauge_map: GaugeMap | None = None
-        # fields for training, should be filled by `init_training`
+        # fields for the training process that should be filled by `init_training`
         self.true_samples = None
         self.training_samples = None
         self.prior_dist = None
@@ -56,7 +56,7 @@ class Example:
                 torch.eye(self.dim, device=self.device),
             )
         elif self.method.startswith("gauge"):
-            self.prior_dist = UnitBallUniform(self.dim)
+            self.prior_dist = HyperBallUniform(self.dim)
         else:
             if loc is not Tensor: loc = torch.full([self.dim], loc, dtype=torch.float32, device=self.device)
             if scale is not Tensor: scale = torch.full([self.dim], scale, dtype=torch.float32, device=self.device)
@@ -85,7 +85,7 @@ class Example:
         match self.method:
             case "vanilla" | "reflect" | "project":
                 prefix = "vanilla"
-            case "gauge_vanilla" | "gauge_reflect" | "gauge_project":
+            case "gauge_vanilla.yaml" | "gauge_reflect" | "gauge_project.yaml":
                 prefix = "gauge"
             case "gauge_mirror":
                 prefix = "mirror"
@@ -97,7 +97,7 @@ class Example:
         match self.method:
             case "vanilla" | "reflect" | "project":
                 prefix = "vanilla"
-            case "gauge_vanilla" | "gauge_reflect" | "gauge_project":
+            case "gauge_vanilla.yaml" | "gauge_reflect" | "gauge_project.yaml":
                 prefix = "gauge"
             case "gauge_mirror":
                 prefix = "mirror"
@@ -105,7 +105,8 @@ class Example:
 
     def train(self):
         self.init_training()
-        opt = torch.optim.Adam(self.velocity.parameters(), lr=1e-3)
+        opt = torch.optim.Adam(self.velocity.parameters(), lr=5e-3, weight_decay=1e-5)
+        sche = torch.optim.lr_scheduler.StepLR(opt, gamma=0.99, step_size=100)
         loss = nn.MSELoss()
         # loss = nn.L1Loss
         dl = DataLoader(TensorDataset(self.training_samples),
@@ -119,6 +120,7 @@ class Example:
             opt.zero_grad()
             loss(self.velocity(t, z_t), dz_t).backward()
             opt.step()
+            sche.step()
             if self.verbose and epoch % 1000 == 0:
                 print(f'Epoch: {epoch}')
 
@@ -141,24 +143,26 @@ class Example:
             os.mkdir(os.path.join(self.output, f"{self.method_name()}_gen"))
 
         co = ite.cost.BDKL_KnnK()
-        stats = torch.zeros(self.repeat, 3)
+        stats = torch.zeros(self.repeat, 4)
         for i in range(self.repeat):
             t = self.gen0()
             torch.save(self.gen_x_1, os.path.join(self.output, f"{self.method_name()}_gen/{i}.pt"))
             if self.verbose: print(f"Generated {i} in {t:.2f}s.")
             with torch.no_grad():
                 kl = co.estimation(self.gen_x_1, self.true_samples)
-                mmd = mmd_square(self.gen_x_1, self.true_samples)
+                mmd = (mmd_square(self.gen_x_1, self.true_samples)) ** 0.5
+                fr = self.domain.check_feasibility_v(self.gen_x_1).sum()
             stats[i, 0] = t
             stats[i, 1] = kl
             stats[i, 2] = mmd
+            stats[i, 3] = fr
         if self.append and os.path.exists(os.path.join(self.output, f"{self.method_name()}_stats.csv")):
             (pd
-             .DataFrame(stats, columns=["Time", "KL", "MMD"])
+             .DataFrame(stats, columns=["Time", "KL", "MMD", "Feasibility"])
              .to_csv(os.path.join(self.output, f"{self.method_name()}_stats.csv"), index=False, mode="a", header=False))
         else:
             (pd
-             .DataFrame(stats, columns=["Time", "KL", "MMD"])
+             .DataFrame(stats, columns=["Time", "KL", "MMD", "Feasibility"])
              .to_csv(os.path.join(self.output, f"{self.method_name()}_stats.csv"), index=False))
 
     def method_name(self):

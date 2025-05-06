@@ -346,7 +346,7 @@ class InitKnnKAlphaBeta(InitKnnKAlpha):
 
 
 class InitKnnSAlpha(InitAlpha):
-    """ Initialization for methods based on generalized kNNs & alpha \ne 1.
+    """ Initialization for method based on generalized kNNs & alpha \ne 1.
 
     k-nearest neighbors: S \subseteq {1,...,k}.
 
@@ -465,9 +465,9 @@ class InitBagGram(object):
         g = zeros((num_of_distributions, num_of_distributions))
         print('G computation: started.')
 
-        for k1 in range(num_of_distributions):       # k1^th distribution
+        for k1 in range(num_of_distributions):  # k1^th distribution
             if mod(k1, 10) == 0:
-                print('k1=' + str(k1+1) + '/' + str(num_of_distributions) +
+                print('k1=' + str(k1 + 1) + '/' + str(num_of_distributions) +
                       ': started.')
 
             for k2 in range(k1, num_of_distributions):  # k2^th distr.
@@ -494,7 +494,7 @@ class InitBagGram(object):
 
 
 class InitEtaKernel(InitKernel):
-    """ Initialization for kernel based methods with an eta > 0 parameter.
+    """ Initialization for kernel based method with an eta > 0 parameter.
 
     Eta is a tolerance parameter; it is used to control the approximation
     quality of incomplete Cholesky decomposition based approximation.

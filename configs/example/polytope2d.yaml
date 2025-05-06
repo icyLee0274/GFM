@@ -1,0 +1,13 @@
+name: Polytope 2D
+implementation: Polytope
+dimension: 2
+
+data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
+n_samples: 10000            # If the file does not exist, generate samples.
+
+
+domain_file: ../../../data/polytope_d2_3.npz
+
+
+
+

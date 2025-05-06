@@ -4,7 +4,7 @@ from torchdiffeq import odeint
 
 from .example import Example
 from misc import *
-from CvxIneq import *
+from gfm import *
 
 
 class Hypercube(Example):
@@ -46,13 +46,13 @@ class Hypercube(Example):
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=cube_reflect)[-1]
             case "project":
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=cube_project)[-1]
-            case "gauge_vanilla":
+            case "gauge_vanilla.yaml":
                 z_1 = odeint(self.velocity, z_0, ts)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_reflect":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=ball_reflect)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
-            case "gauge_project":
+            case "gauge_project.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=ball_project)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_mirror":

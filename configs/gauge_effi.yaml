@@ -1,0 +1,42 @@
+hydra:
+  run:
+    dir: ../output/effi/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: true
+
+target: linear
+repeat: 1
+
+linear:
+  dims: [ 256 ]
+  box: 4
+  n_cons: 8
+  seed: 114
+  test_size: 10
+  batch_size: [ 10, 100, 1000, 10000, 100000 ]
+
+quadratic:
+  dims: [ 256 ]
+  box: 4
+  n_cons: 8
+  seed: 114
+  test_size: 10
+  batch_size: [ 10, 100, 1000, 10000, 100000 ]
+
+soc:
+  dims: [ 256 ]
+  box: 4
+  n_cons: 8
+  seed: 114
+  test_size: 10
+  batch_size: [ 10, 100, 1000, 10000, 100000 ]
+
+# PSD
+lmi:
+  dims: [ 256 ]
+  mat_dim: 16
+  box: 4
+  n_cons: 8
+  seed: 114
+  test_size: 10
+  batch_size: [ 10, 100, 1000, 10000, 100000 ]

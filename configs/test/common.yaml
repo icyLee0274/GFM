@@ -1,0 +1,3 @@
+n_gen: 10000
+repeats: 10
+n_steps: 100

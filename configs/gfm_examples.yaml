@@ -1,0 +1,21 @@
+defaults:
+  - _self_
+  - example: polytope2d
+  - method: vanilla
+  - velocity: trivial2
+  - train: naive
+  - test: common
+
+hydra:
+  run:
+    dir: ../output/${example.name}/${now:%m-%d %H:%M:%S}
+  job:
+    chdir: true
+
+accelerator: cpu
+devices: auto
+
+out_prefix: ../ # this is the project_dir/output/${example_name}
+
+#action: train # test
+action: test

@@ -25,16 +25,16 @@ NORM="Linf"
 
 
 #echo "**************** Training Gauge ****************"
-#python run_example.py $EXAMPLE --verbose --norm $NORM --train --batch_size $BATCH --hidden $HIDDEN --interior_point $IP --method gauge_vanilla
+#python run_example.py $EXAMPLE --verbose --norm $NORM --train --batch_size $BATCH --hidden $HIDDEN --interior_point $IP --method gauge_vanilla.yaml
 #
 #echo "**************** Testing Gauge Vanilla ****************"
-#python run_example.py $EXAMPLE --verbose --norm $NORM --test --interior_point $IP --n_gen $GEN --repeat $REPEAT --method gauge_vanilla
+#python run_example.py $EXAMPLE --verbose --norm $NORM --test --interior_point $IP --n_gen $GEN --repeat $REPEAT --method gauge_vanilla.yaml
 #
 #echo "**************** Testing Gauge Reflect ****************"
 #python run_example.py $EXAMPLE --verbose --norm $NORM --test --interior_point $IP --n_gen $GEN --repeat $REPEAT --method gauge_reflect
 #
 #echo "**************** Testing Gauge Project ****************"
-#python run_example.py $EXAMPLE --verbose --norm $NORM --test --interior_point $IP --n_gen $GEN --repeat $REPEAT --method gauge_project
+#python run_example.py $EXAMPLE --verbose --norm $NORM --test --interior_point $IP --n_gen $GEN --repeat $REPEAT --method gauge_project.yaml
 
 
 echo "**************** Training Mirror ****************"

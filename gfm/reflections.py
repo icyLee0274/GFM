@@ -46,10 +46,10 @@ def cube_reflect(o: Tensor, v: Tensor) -> Tensor:
 
 class PolytopeReflector:
 
-    def __init__(self, A: torch.Tensor, b: torch.Tensor):
+    def __init__(self, At: torch.Tensor, b: torch.Tensor):
         self.b = b
-        self.A = A
-        self.At = A.T
+        self.A = At.T
+        self.At = At
 
     def __call__(self, os: torch.Tensor, vs: torch.Tensor) -> torch.Tensor:
         A = self.A.to(os.device)  # K * d
@@ -114,17 +114,20 @@ class QcReflector:
             ts = (-b + torch.sqrt(delta)) / 2 / a
             ts[ii] = torch.inf
             t_all[:, i_con] = ts
-        ts, ii = torch.min(t_all, dim=1)
-        ts = torch.minimum(ts, torch.ones_like(ts))
-        ds = ts.view(-1, 1) * vs + os
+        # t_all: N*k, corresponding step length 't' for each constraint
+        ts, ii = torch.min(t_all, dim=1)  # ts: N, step length after consider all constraints;
+        #                                 # ii: N, which constraint is hit
+        ts = torch.minimum(ts, torch.ones_like(ts))  # Limit step length to 1
+        ds = ts.view(-1, 1) * vs + os  # destination (before reflection)
+        # This loop might be vectorized -TODO
         for i in range(os.shape[0]):
-            if ts[i] < 1:
-                H = self.Hs[ii[i]]
+            if ts[i] < 1:  # if hit one constraint => need reflection
+                H = self.Hs[ii[i]]  # corresponding constraint
                 G = self.Gs[ii[i]]
 
-                n = - H @ ds[i] - G
+                n = - H @ ds[i] - G  # normal vector at 'ds[i]'
                 nv = n @ vs[i]
                 nn = n @ n
-                r = vs - 2 * (nv / nn) * n
+                r = vs[i] - 2 * (nv / nn) * n
                 ds[i] = ds[i] + (1 - ts[i]) * r
         return ds

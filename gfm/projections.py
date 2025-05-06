@@ -4,7 +4,7 @@ from quadprog import solve_qp
 import cvxpy as cp
 from torch import Tensor
 
-__all__ = ["PolytopeProjector", "cube_project", "ball_project"]
+__all__ = ["PolytopeProjector", "cube_project", "ball_project", "EllipsoidProjector"]
 
 
 class EllipsoidProjector:

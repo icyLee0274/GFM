@@ -17,6 +17,7 @@ python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --train --batch
 
 echo "**************** Testing Vanilla ****************"
 python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --test --n_gen $GEN --repeat $REPEAT --method vanilla
+
 echo "**************** Testing Reflect ****************"
 python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --test --n_gen $GEN --repeat $REPEAT --method reflect
 
@@ -37,8 +38,8 @@ echo "**************** Testing Gauge Project ****************"
 python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --norm $NORM --test --n_gen $GEN --repeat $REPEAT --method gauge_project
 
 
-echo "**************** Training Mirror ****************"
-python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --norm L2 --train --batch_size $BATCH --hidden $HIDDEN --method gauge_mirror
+#echo "**************** Training Mirror ****************"
+#python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --norm L2 --train --batch_size $BATCH --hidden $HIDDEN --method gauge_mirror
 
-echo "**************** Testing Mirror ****************"
-python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --norm L2 --test --n_gen $GEN --repeat $REPEAT --method gauge_mirror
+#echo "**************** Testing Mirror ****************"
+#python run_example.py $EXAMPLE --verbose --data "data/$DATA.npz" --norm L2 --test --n_gen $GEN --repeat $REPEAT --method gauge_mirror

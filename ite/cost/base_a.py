@@ -66,19 +66,19 @@ class BASpearman1(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
-        
+
         dim = y.shape[1]  # dimension
         u = copula_transformation(y)
-        h = (dim + 1) / (2**dim - (dim + 1))  # h_rho(dim)
-        a = h * (2**dim * mean(prod(1 - u, axis=1)) - 1)
-        
+        h = (dim + 1) / (2 ** dim - (dim + 1))  # h_rho(dim)
+        a = h * (2 ** dim * mean(prod(1 - u, axis=1)) - 1)
+
         return a
 
 
@@ -95,7 +95,7 @@ class BASpearman2(InitX, VerOneDSubspaces, VerCompSubspaceDims):
     >>> co = ite.cost.BASpearman2()
 
     """
-    
+
     def estimation(self, y, ds=None):
         """ Estimate the second multivariate extension of Spearman's rho.
         
@@ -140,20 +140,20 @@ class BASpearman2(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
-        
+
         dim = y.shape[1]  # dimension
         u = copula_transformation(y)
-        h = (dim + 1) / (2**dim - (dim + 1))  # h_rho(dim)
-        
-        a = h * (2**dim * mean(prod(u, axis=1)) - 1)
-        
+        h = (dim + 1) / (2 ** dim - (dim + 1))  # h_rho(dim)
+
+        a = h * (2 ** dim * mean(prod(u, axis=1)) - 1)
+
         return a
 
 
@@ -211,23 +211,23 @@ class BASpearman3(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
-        
+
         dim = y.shape[1]  # dimension
         u = copula_transformation(y)
-        h = (dim + 1) / (2**dim - (dim + 1))  # h_rho(d)
-        
-        a1 = h * (2**dim * mean(prod(1 - u, axis=1)) - 1)
-        a2 = h * (2**dim * mean(prod(u, axis=1)) - 1)
+        h = (dim + 1) / (2 ** dim - (dim + 1))  # h_rho(d)
+
+        a1 = h * (2 ** dim * mean(prod(1 - u, axis=1)) - 1)
+        a2 = h * (2 ** dim * mean(prod(u, axis=1)) - 1)
         a = (a1 + a2) / 2
-        
-        return a        
+
+        return a
 
 
 class BASpearman4(InitX, VerOneDSubspaces, VerCompSubspaceDims):
@@ -243,7 +243,7 @@ class BASpearman4(InitX, VerOneDSubspaces, VerCompSubspaceDims):
     >>> co = ite.cost.BASpearman4()
 
     """
-    
+
     def estimation(self, y, ds=None):
         """ Estimate the fourth multivariate extension of Spearman's rho.
         
@@ -272,7 +272,7 @@ class BASpearman4(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         Spearman's rho and related statistics. Statistics & Probability 
         Letters, 77:407-416, 2007.
         
-        Maurice G. Kendall. Rank correlation methods. London, Griffin,
+        Maurice G. Kendall. Rank correlation method. London, Griffin,
         1970.
        
         C. Spearman. The proof and measurement of association between two 
@@ -284,22 +284,22 @@ class BASpearman4(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
 
         num_of_samples, dim = y.shape  # number of samples, dimension
         u = copula_transformation(y)
-        
+
         m_triu = triu(ones((dim, dim)), 1)  # upper triangular mask
         b = binom(dim, 2)
-        a = 12 * sum(dot((1 - u).T, (1 - u)) * m_triu) /\
+        a = 12 * sum(dot((1 - u).T, (1 - u)) * m_triu) / \
             (b * num_of_samples) - 3
-        
+
         return a
 
 
@@ -313,7 +313,7 @@ class BASpearmanCondLT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
     'ite.cost.x_initialization.py', 'ite.cost.x_verification.py').
 
     """
-   
+
     def __init__(self, mult=True, p=0.5):
         """ Initialize the estimator. 
         
@@ -333,13 +333,13 @@ class BASpearmanCondLT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         >>> co2 = ite.cost.BASpearmanCondLT(p=0.4)
 
         """
-        
+
         # initialize with 'InitX':
         super().__init__(mult=mult)
-        
+
         # p:
         self.p = p
-     
+
     def estimation(self, y, ds=None):
         """ Estimate multivariate conditional version of Spearman's rho.
         
@@ -372,21 +372,21 @@ class BASpearmanCondLT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
-        
+
         num_of_samples, dim = y.shape  # number of samples, dimension
         u = copula_transformation(y)
-        c1 = (self.p**2 / 2)**dim
-        c2 = self.p**(dim + 1) / (dim + 1)
-        
+        c1 = (self.p ** 2 / 2) ** dim
+        c2 = self.p ** (dim + 1) / (dim + 1)
+
         a = (mean(prod(maximum(self.p - u, 0), axis=1)) - c1) / (c2 - c1)
-        
+
         return a
 
 
@@ -400,7 +400,7 @@ class BASpearmanCondUT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
     'ite.cost.x_initialization.py', 'ite.cost.x_verification.py').
     
     """
-   
+
     def __init__(self, mult=True, p=0.5):
         """ Initialize the estimator. 
         
@@ -420,13 +420,13 @@ class BASpearmanCondUT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         >>> co2 = ite.cost.BASpearmanCondUT(p=0.4)
 
         """
-        
+
         # initialize with 'InitX':
         super().__init__(mult=mult)
-        
+
         # p:
         self.p = p
-     
+
     def estimation(self, y, ds=None):
         """ Estimate multivariate conditional version of Spearman's rho.
         
@@ -459,23 +459,23 @@ class BASpearmanCondUT(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
-       
+
         num_of_samples, dim = y.shape  # number of samples, dimension
         u = copula_transformation(y)
-    
-        c = mean(prod(1 - maximum(u, 1 - self.p), axis=1))
-        c1 = (self.p * (2 - self.p) / 2)**dim
-        c2 = self.p**dim * (dim + 1 - self.p * dim) / (dim + 1)
 
-        a = (c - c1) / (c2 - c1)        
-        
+        c = mean(prod(1 - maximum(u, 1 - self.p), axis=1))
+        c1 = (self.p * (2 - self.p) / 2) ** dim
+        c2 = self.p ** dim * (dim + 1 - self.p * dim) / (dim + 1)
+
+        a = (c - c1) / (c2 - c1)
+
         return a
 
 
@@ -498,7 +498,7 @@ class BABlomqvist(InitX, VerOneDSubspaces, VerCompSubspaceDims):
     >>> co = ite.cost.BABlomqvist()
 
     """
-    
+
     def estimation(self, y, ds=None):
         """ Estimate multivariate extension of Blomqvist's beta.
         
@@ -543,10 +543,10 @@ class BABlomqvist(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         a2 = co.estimation(y)
 
         """
-        
+
         if ds is None:  # emulate 'ds = vector of ones'
             ds = ones(y.shape[1], dtype='int')
-        
+
         # verification:
         self.verification_compatible_subspace_dimensions(y, ds)
         self.verification_one_dimensional_subspaces(ds)
@@ -554,9 +554,9 @@ class BABlomqvist(InitX, VerOneDSubspaces, VerCompSubspaceDims):
         num_of_samples, dim = y.shape  # number of samples, dimension
         u = copula_transformation(y)
 
-        h = 2**(dim - 1) / (2**(dim - 1) - 1)  # h(dim)
-        c1 = mean(all(u <= 1/2, axis=1))  # C(1/2)
-        c2 = mean(all(u > 1/2, axis=1))  # \bar{C}(1/2)
-        a = h * (c1 + c2 - 2**(1 - dim))
-        
-        return a                     
+        h = 2 ** (dim - 1) / (2 ** (dim - 1) - 1)  # h(dim)
+        c1 = mean(all(u <= 1 / 2, axis=1))  # C(1/2)
+        c2 = mean(all(u > 1 / 2, axis=1))  # \bar{C}(1/2)
+        a = h * (c1 + c2 - 2 ** (1 - dim))
+
+        return a

@@ -2,10 +2,10 @@ import torch, time, os
 from torch import tensor, Tensor
 import cvxpy as cp
 
-from CvxIneq.projections import EllipsoidProjector
+from gfm.projections import EllipsoidProjector
 from .example import Example
 from misc import *
-from CvxIneq import *
+from gfm import *
 
 
 class QC(Example):
@@ -24,7 +24,7 @@ class QC(Example):
             self.rf = EllipsoidProjector(self.Hs, self.Gs, self.hs)
         elif self.method == "gauge_reflect":
             self.rf = cube_reflect if self.norm == "Linf" else ball_reflect
-        elif self.method == "gauge_project":
+        elif self.method == "gauge_project.yaml":
             self.rf = cube_project if self.norm == "Linf" else ball_project
         else:
             self.rf = None
@@ -80,13 +80,13 @@ class QC(Example):
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
             case "project":
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
-            case "gauge_vanilla":
+            case "gauge_vanilla.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_reflect":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
-            case "gauge_project":
+            case "gauge_project.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.rf)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_mirror":

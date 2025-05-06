@@ -4,7 +4,7 @@ from torch.distributions import MultivariateNormal
 
 from .example import Example
 from misc import *
-from CvxIneq import *
+from gfm import *
 
 
 # 0. change to p_inf
@@ -52,7 +52,7 @@ class Polytope2D(Example):
                 torch.eye(2, device=self.device),
             )
         elif self.method.startswith("gauge"):
-            self.prior_dist = UnitBallUniform(2)
+            self.prior_dist = HyperBallUniform(2)
         else:
             self.prior_dist = TruncatedDistribution(
                 HyperBoxUniform(torch.full([2], -1, device=self.device),
@@ -81,20 +81,20 @@ class Polytope2D(Example):
                 x_1 = odeint_reflect(self.velocity, z_0, ts)[-1]
             case "reflect":
                 if self.reflect_fn is None:
-                    self.reflect_fn = PolytopeReflector(self.domain.At.T, self.domain.b)
+                    self.reflect_fn = PolytopeReflector(self.domain.At, self.domain.b)
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.reflect_fn)[-1]
             case "project":
                 # raise NotImplementedError("Projected method not implemented yet.")
                 if self.projector is None:
                     self.projector = PolytopeProjector(self.domain.At, self.domain.b)
                 x_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=self.projector)[-1]
-            case "gauge_vanilla":
+            case "gauge_vanilla.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_reflect":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=ball_reflect)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
-            case "gauge_project":
+            case "gauge_project.yaml":
                 z_1 = odeint_reflect(self.velocity, z_0, ts, reflect_fn=ball_project)[-1]
                 x_1 = self.gauge_map.from_disk(z_1)
             case "gauge_mirror":

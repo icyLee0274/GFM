@@ -9,6 +9,9 @@
       <excludeFolder url="file://$MODULE_DIR$/spd-out" />
       <excludeFolder url="file://$MODULE_DIR$/teo" />
       <excludeFolder url="file://$MODULE_DIR$/toy-example-out" />
+      <excludeFolder url="file://$MODULE_DIR$/IneqNotes" />
+      <excludeFolder url="file://$MODULE_DIR$/output" />
+      <excludeFolder url="file://$MODULE_DIR$/tex" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
