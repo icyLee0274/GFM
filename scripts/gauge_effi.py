@@ -8,7 +8,7 @@ import numpy as np
 import cvxpy as cp
 import pandas as pd
 
-import misc, gfm
+import gfm, gfm
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ def solve_ip(a, x, constraints):
     return end - start, x.value
 
 
-def test_gauge(domain: misc.ConstrainedSet, bs: int, ip: np.ndarray, d: int) -> float:
+def test_gauge(domain: gfm.ConstrainedSet, bs: int, ip: np.ndarray, d: int) -> float:
     vs = torch.randn((bs, d)).to(torch.float32)
     os = torch.from_numpy(ip).to(torch.float32).expand(bs, -1)
     start = time.time()
@@ -100,7 +100,7 @@ def test_gauge(domain: misc.ConstrainedSet, bs: int, ip: np.ndarray, d: int) -> 
 
 def test_linear(cfg: DictConfig, collector: Collector):
     for d in cfg.dims:
-        G, h, _ = misc.make_polytope(cfg.seed, d, cfg.n_cons, cfg.test_size, (-cfg.box, cfg.box))
+        G, h, _ = gfm.make_polytope(cfg.seed, d, cfg.n_cons, cfg.test_size, (-cfg.box, cfg.box))
         G = np.vstack([G, np.eye(d), -np.eye(d)])
         h = np.concatenate([h, np.full(2 * d, cfg.box)])
 
@@ -111,7 +111,7 @@ def test_linear(cfg: DictConfig, collector: Collector):
         ip_time, ip = solve_ip(a, x, constraints)
 
         # Evaluating gauge mapping
-        domain = misc.LinearConstraint(torch.from_numpy(G).to(torch.float32), torch.from_numpy(h).to(torch.float32))
+        domain = gfm.LinearConstraint(torch.from_numpy(G).to(torch.float32), torch.from_numpy(h).to(torch.float32))
         for bs in cfg.batch_size:
             gauge_time = test_gauge(domain, bs, ip, d)
 
@@ -121,7 +121,7 @@ def test_linear(cfg: DictConfig, collector: Collector):
 
 def test_qc(cfg: DictConfig, collector: Collector):
     for d in cfg.dims:
-        Q, p, b = misc.make_qc(d, cfg.n_cons, cfg.seed)
+        Q, p, b = gfm.make_qc(d, cfg.n_cons, cfg.seed)
 
         # Solving interior point
         a = cp.Variable()
@@ -132,8 +132,8 @@ def test_qc(cfg: DictConfig, collector: Collector):
         # Evaluating gauge mapping
         Q = torch.from_numpy(Q).to(torch.float32)
         p = torch.from_numpy(p).to(torch.float32)
-        domain = misc.Intersection(*[
-            misc.QuadraticConstraint(Q[i], p[i], b[i].item()) for i in range(Q.shape[0])
+        domain = gfm.Intersection(*[
+            gfm.QuadraticConstraint(Q[i], p[i], b[i].item()) for i in range(Q.shape[0])
         ])
         for bs in cfg.batch_size:
             gauge_time = test_gauge(domain, bs, ip, d)
@@ -144,7 +144,7 @@ def test_qc(cfg: DictConfig, collector: Collector):
 
 def test_soc(cfg: DictConfig, collector: Collector):
     for d in cfg.dims:
-        A, b, c, s = misc.make_soc(d, cfg.n_cons, cfg.seed)
+        A, b, c, s = gfm.make_soc(d, cfg.n_cons, cfg.seed)
 
         # Solving interior point
         a = cp.Variable()
@@ -157,8 +157,8 @@ def test_soc(cfg: DictConfig, collector: Collector):
         b = torch.from_numpy(b).to(torch.float32)
         c = torch.from_numpy(c).to(torch.float32)
 
-        domain = misc.Intersection(*[
-            misc.ConeConstraint(A[i], b[i], c[i], s[i]) for i in range(A.shape[0])
+        domain = gfm.Intersection(*[
+            gfm.ConeConstraint(A[i], b[i], c[i], s[i]) for i in range(A.shape[0])
         ])
         for bs in cfg.batch_size:
             gauge_time = test_gauge(domain, bs, ip, d)
@@ -197,8 +197,8 @@ def test_lmi(cfg: DictConfig, collector: Collector):
 
         # Evaluating gauge mapping
         Fss = torch.from_numpy(Fss).to(torch.float32)
-        domain = misc.Intersection(*[
-            misc.SemiDefiniteConstraint(Fss[i]) for i in range(cfg.n_cons)
+        domain = gfm.Intersection(*[
+            gfm.SemiDefiniteConstraint(Fss[i]) for i in range(cfg.n_cons)
         ])
         for bs in cfg.batch_size:
             gauge_time = test_gauge(domain, bs, ip, d)

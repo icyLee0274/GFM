@@ -68,7 +68,7 @@ class Compound2D(examples.GfmExampleBase):
                 logger.info(f"Solved interior point: {ip}")
             else:
                 raise RuntimeError("Failed to solve the interior point.")
-        elif self.cfg.exaample.interior_point is str:
+        elif self.cfg.example.interior_point is str:
             ip = np.load(self.cfg.example.interior_point)
             logger.info(f"Interior point loaded: {ip}")
         else:

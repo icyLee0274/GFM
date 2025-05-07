@@ -1,5 +1,6 @@
 from typing import Callable, Literal
 
+import geoopt
 import torch
 from torch import tensor, Tensor
 
@@ -93,6 +94,106 @@ class ConstrainedSet:
         ts = torch.ones(vs.shape[0], device=device)
         for i in range(vs.shape[0]):
             ts[i] = self.eval_intersection(os[i], vs[i], tol, thresh)
+        return ts
+
+    def eval_manifold_intersection_v(
+            self,
+            x0s: Tensor, vs: Tensor,
+            manifold: geoopt.Manifold,
+            tol: float = 1e-6, thresh: float = 1e8,
+            device=torch.get_default_device(),
+            **kwargs,
+    ) -> Tensor:
+        """
+        Evaluate the intersection of a manifold boundary and rays defined by starting points and directions.
+        Namely, compute the point-to-boundary distance d(x_0, v):
+
+        .. math::
+            x_0 + d(x_0, v) v \in \partial S
+
+        This method computes the scale factors `t` for each ray such that the point `x0 + t * v` lies on the boundary
+        of the manifold. The computation is performed using a combination of upper-bound estimation and bisection.
+
+        For some manifolds, unlike Euclidean space, which is the :method:`eval_intersection_v` method,
+        the ray `x0 + t * v` may intersect the boundary of the constrained set at multiple points.
+        In such cases, this method returns the (possible) first intersection point.
+        It is preferred to provide suitable `tol` and `thresh` values to ensure the method works correctly.
+        If an upper bound on the scale of the tangent exists, provide it as `thresh`.
+        Otherwise, choose smaller `step_size` and larger `n_slice` for correctness.
+
+        :param x0s: Starting points of the rays, a 2D Tensor of shape (n, d).
+        :param vs: Direction vectors of the rays, a 2D Tensor of shape (n, d).
+        :param manifold: A geoopt.Manifold object representing the manifold.
+        :param tol: Tolerance for the bisection method, default is 1e-6.
+        :param thresh: Threshold for no intersection; scale factors larger than this are considered infinite, default is 1e8.
+        :param device: Torch device to perform computations on, default is the current default device.
+        :param kwargs: Additional parameters:
+            - max_iter (int): Maximum number of iterations for bisection, default is 1e5.
+            - step_size (float): Step size for finding the upper bound, default is 2.
+            - n_slice (int): Number of slices for checking feasibility in the upper bound search, default is 100.
+            - growth (str): Growth strategy for the step size, either "fixed" or "exponential", default is "fixed".
+            - init (Tensor): Initial scale factors for the rays, default is a Tensor of ones.
+
+        :return: A 1D Tensor of scale factors `t` for each ray. If no intersection is found, the value is `inf`.
+        """
+
+        max_iter = kwargs.get("max_iter", 1e5)
+        step_size = kwargs.get("step_size", 2)
+        n_slice = kwargs.get("n_slice", 100)
+        growth = kwargs.get("growth", "fixed")  # "fixed" or "exponential"
+        t0 = kwargs.get("init", None)
+        if t0 is None: t0 = torch.ones(vs.shape[0], device=device)
+        if not torch.is_tensor(t0): raise ValueError("`init` must be of type Tensor.")
+
+        if x0s.dim() == 1: x0s = x0s.expand(vs.shape[0], -1)
+
+        # Find the upper bound
+        uppers = t0.clone()
+        cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+
+        while torch.any(cont):
+            nxt = uppers + step_size if growth == "fixed" else uppers * step_size
+            nxt[nxt > thresh] = thresh
+
+            if n_slice > 0:
+                for i in torch.nonzero(cont, as_tuple=False):
+                    ts = torch.linspace(uppers[i].item(), nxt[i].item(), n_slice, device=device)
+                    xs = manifold.expmap(x0s[i].expand(n_slice, -1), ts.view(-1, 1) * vs[i])
+                    fs = self.check_feasibility_v(xs, device)
+                    if torch.any(~fs):
+                        uppers[i] = ts[~fs][0]
+                        cont[i] = False
+                uppers[cont] = nxt[cont]
+            else:
+                xs = manifold.expmap(x0s[cont], nxt[cont].view(-1, 1) * vs[cont])
+                fs = self.check_feasibility_v(xs, device)
+                uppers[cont] = nxt[cont]
+                cont[cont] = fs
+
+            cont = cont & (uppers < thresh)
+
+        # Bisection
+        ts = t0
+        lowers = t0.clone()
+        cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+        mask = torch.ones_like(cont)
+
+        i = 0
+        while torch.any(cont) and i < max_iter:
+            i += 1
+
+            ts = (lowers + uppers) / 2
+            xs = manifold.expmap(x0s[cont], ts[cont].view(-1, 1) * vs[cont])
+            fs = self.check_feasibility_v(xs, device)
+
+            # feasible => ts are too small
+            mask[cont] = fs
+            lowers[mask] = ts[mask]
+            # infeasible => ts are too large
+            mask[cont] = ~fs
+            uppers[mask] = ts[mask]
+            cont = torch.flatten(uppers - lowers >= tol)
+
         return ts
 
 
