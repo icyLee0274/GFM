@@ -1,0 +1,12 @@
+name: Star
+implementation: Star
+dimension: 2
+
+data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
+n_samples: 10000            # If the file does not exist, generate samples.
+
+alpha: 0.5
+n_tips: 5
+scale: 1.0
+
+# domain_file: N/A
