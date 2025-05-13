@@ -280,7 +280,7 @@ class GfmExampleBase(lightning.LightningModule):
         co = ite.cost.BDKL_KnnK()
         x_1 = self.sample(self.cfg.test.n_gen, self.cfg.test.n_steps)
         data = self.get_data()
-        kl = co.estimation(x_1, data)
+        kl = co.estimation(x_1.cpu().numpy(), data.cpu().numpy())
         mmd = maximum_mean_discrepancy(x_1, data)
         fea = self.get_domain().check_feasibility_v(x_1).sum()
         self.log("kl", kl)
