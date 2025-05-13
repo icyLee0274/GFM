@@ -7,7 +7,7 @@ from lightning.pytorch.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig, OmegaConf
 from torch import nn, tensor, Tensor
 import lightning
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, Dataset
 from torch.distributions import MultivariateNormal
 
 import ite
@@ -27,6 +27,25 @@ from gfm import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class PriorDataset(Dataset):
+    def __init__(self, distribution, length=10000):
+        """
+        Args:
+            distribution (torch.distributions.Distribution): A PyTorch distribution
+            length (int): Virtual length (number of samples to simulate)
+        """
+        self.distribution = distribution
+        self.length = length  # Pretend we have this many samples
+
+    def __len__(self):
+        return self.length
+
+    def __getitem__(self, idx):
+        # Ignore idx; just return a fresh sample
+        sample = self.distribution.sample([len(idx)])
+        return sample
 
 
 class GfmExampleBase(lightning.LightningModule):
@@ -90,7 +109,8 @@ class GfmExampleBase(lightning.LightningModule):
                                     else tensor(self.cfg.method.prior_center),
                                     self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
                                 ),
-                                self.get_domain()
+                                self.get_domain(),
+                                self.device,
                             )
             setattr(self, "_prior", dist)
         return dist
@@ -224,13 +244,22 @@ class GfmExampleBase(lightning.LightningModule):
     def train_dataloader(self):
         data = self.get_data()
         training_data = self.transform(data)
-        return DataLoader(
-            TensorDataset(training_data),
-            batch_size=self.cfg.train.batch_size,
-            shuffle=True,
-            # https://stackoverflow.com/questions/68621210/runtimeerror-expected-a-cuda-device-type-for-generator-but-found-cpu
-            generator=torch.Generator(device=self.device),
-        )
+        return [
+            DataLoader(
+                TensorDataset(training_data),
+                batch_size=self.cfg.train.batch_size,
+                shuffle=True,
+                # https://stackoverflow.com/questions/68621210/runtimeerror-expected-a-cuda-device-type-for-generator-but-found-cpu
+                generator=torch.Generator(device=self.device),
+                num_workers=1,
+            ),
+            DataLoader(
+                PriorDataset(self.get_prior(), training_data.shape[0]),
+                shuffle=False,
+                batch_size=self.cfg.train.batch_size,
+                num_workers=self.cfg.train.get("num_workers", 0),
+            )
+        ]
 
     def test_dataloader(self):
         return [
@@ -250,7 +279,7 @@ class GfmExampleBase(lightning.LightningModule):
     def training_step(self, batch, batch_idx):
         if self.cfg.method.name == "ddpm": return self.ddpm_training_step(batch)
         z_1 = batch[0]
-        z_0 = self.get_prior().sample([len(z_1)]).to(z_1)
+        z_0 = batch[1]
         t = torch.rand(len(z_1), 1).to(z_1)
         z_t = (1 - t) * z_0 + t * z_1
         dz_t = z_1 - z_0
@@ -333,8 +362,8 @@ class GfmExampleBase(lightning.LightningModule):
 
     def ddpm_training_step(self, batch):
         x0 = batch[0]
+        noise = batch[1]
         t = torch.randint(0, self.cfg.method.horizon, (x0.size(0),), device=x0.device)
-        noise = torch.randn_like(x0)
         xt = self.q_sample(t, x0, noise)
         pred_noise = self.velocity(t / self.cfg.method.horizon, xt)
         loss = self.get_loss()(pred_noise, noise)
