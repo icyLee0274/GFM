@@ -277,15 +277,15 @@ class GfmExampleBase(lightning.LightningModule):
 
     @torch.no_grad()
     def test_step(self, *args, **kwargs) -> STEP_OUTPUT:
-        co = ite.cost.BDKL_KnnK()
+        # co = ite.cost.BDKL_KnnK()
         x_1 = self.sample(self.cfg.test.n_gen, self.cfg.test.n_steps)
         data = self.get_data()
         # kl = co.estimation(x_1.cpu().numpy(), data.cpu().numpy())
         mmd = maximum_mean_discrepancy(x_1, data)
-        fea = self.get_domain().check_feasibility_v(x_1).sum()
+        fea = self.get_domain().check_feasibility_v(x_1).sum().view(dtype=torch.float32)
         # self.log("kl", kl)
         self.log("mmd", mmd)
-        self.log("feasible", tensor([fea]))
+        self.log("feasible", fea)
 
         if self.cfg.test.get("save_samples", False):
             i = 0

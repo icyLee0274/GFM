@@ -139,16 +139,16 @@ class GaugeMap:
         """
         # z = x / ( |x| * phi(x) ) => |z| = 1 / phi(x)
 
-        x0 = self.x0.expand(zs.shape[0], -1).to(device)
+        x0 = self.x0.expand(zs.shape[0], -1).to(zs)
 
         # rs
-        rs = torch.linalg.vector_norm(zs, dim=-1, keepdim=True, ord=self.p).to(device)
+        rs = torch.linalg.vector_norm(zs, dim=-1, keepdim=True, ord=self.p).to(zs)
 
         ii = torch.flatten(rs >= tol)
-        xs = torch.zeros_like(zs, device=device)
+        xs = torch.zeros_like(zs)
         xs[~ii] = x0[~ii]
 
-        ds = self.boundary_dist(x0[ii], zs[ii], tol, thresh, device, **kwargs)
+        ds = self.boundary_dist(x0[ii], zs[ii], tol, thresh, zs.device, **kwargs)
         xs[ii, :] = self.exp_map(x0[ii], ds * rs[ii] * zs[ii])
 
         return xs
