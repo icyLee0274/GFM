@@ -17,7 +17,7 @@ class Quadratic(examples.GfmExampleBase):
     @torch.no_grad()
     def _init_domain(self) -> tuple[ConstrainedSet, Tensor]:
         dim = self.cfg.example.dimension
-        device = self.cfg.accelerator
+        device = self.device
 
         npz = np.load(self.cfg.example.domain_file)
         Hs = torch.from_numpy(npz["Hs"]).to(device=device, dtype=torch.float32)
@@ -37,7 +37,7 @@ class Quadratic(examples.GfmExampleBase):
     @torch.no_grad()
     def _init_data(self, n: int) -> Tensor:
         dim = self.cfg.example.dimension
-        device = self.cfg.accelerator
+        device = self.device
         avgs = [
             tensor(p, device=device, dtype=torch.float32)
             for p in product(*([[-1, 1]] * dim))

@@ -40,12 +40,12 @@ class Star(examples.GfmExampleBase):
 
     def _init_domain(self) -> tuple[ConstrainedSet, Tensor]:
         return StarDomain(self.cfg.example.alpha, self.cfg.example.n_tips), \
-            torch.zeros(2, device=self.cfg.accelerator, dtype=torch.float32)
+            torch.zeros(2, device=self.device, dtype=torch.float32)
 
     @torch.no_grad()
     def _init_data(self, n: int) -> Tensor:
         dim = 2
-        device = self.cfg.accelerator
+        device = self.device
 
         thetas = torch.linspace(0, 2 * torch.pi, self.cfg.example.n_tips + 1, device=device)[:-1]
         avgs = torch.stack([

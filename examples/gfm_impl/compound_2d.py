@@ -21,7 +21,7 @@ class Compound2D(examples.GfmExampleBase):
 
     @torch.no_grad()
     def _init_domain(self) -> tuple[ConstrainedSet, Tensor]:
-        device = self.cfg.accelerator
+        device = self.device
         A = Tensor([
             [1, 0],
             [0, 1],

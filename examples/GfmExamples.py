@@ -122,7 +122,7 @@ class GfmExampleBase(lightning.LightningModule):
         if samples is None:
             data_file = os.path.join(self.cfg.out_prefix, self.cfg.example.data_file)
             if os.path.exists(data_file) and os.path.isfile(data_file):
-                samples = torch.load(data_file, map_location=self.cfg.accelerator)
+                samples = torch.load(data_file, map_location=self.device)
             else:
                 samples = self._init_data(self.cfg.example.n_samples)
                 torch.save(samples, data_file)
@@ -234,6 +234,12 @@ class GfmExampleBase(lightning.LightningModule):
             for _ in range(self.cfg.test.repeats)
         ]
 
+    def on_train_start(self) -> None:
+        self.velocity.to(self.device)
+
+    def on_test_start(self) -> None:
+        self.velocity.to(self.device)
+
     def training_step(self, batch, batch_idx):
         if self.cfg.method.name == "ddpm": return self.ddpm_training_step(batch)
         z_1 = batch[0]
@@ -246,9 +252,9 @@ class GfmExampleBase(lightning.LightningModule):
     @torch.no_grad()
     def sample(self, n_samples: int, n_steps: int) -> Tensor:
         start = time()
-        z_0 = self.get_prior().sample([n_samples]).to(self.cfg.accelerator)
+        z_0 = self.get_prior().sample([n_samples]).to(self.device)
         prior_time = time() - start
-        t = torch.linspace(0, 1, n_steps).to(self.cfg.accelerator)
+        t = torch.linspace(0, 1, n_steps).to(self.device)
         start = time()
         z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm" else
                odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])

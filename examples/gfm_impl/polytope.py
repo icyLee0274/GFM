@@ -15,7 +15,7 @@ class Polytope(examples.GfmExampleBase):
 
     def _init_domain(self) -> tuple[gfm.ConstrainedSet, Tensor]:
         dim = self.cfg.example.dimension
-        device = self.cfg.accelerator
+        device = self.device
 
         npz = np.load(self.cfg.example.domain_file)
         G_np = np.vstack([npz["G"], np.eye(dim), -np.eye(dim)])
@@ -29,7 +29,7 @@ class Polytope(examples.GfmExampleBase):
     @torch.no_grad()
     def _init_data(self, n: int) -> Tensor:
         dim = self.cfg.example.dimension
-        device = self.cfg.accelerator
+        device = self.device
 
         avgs = [
             torch.tensor(p, device=device, dtype=torch.float32)
