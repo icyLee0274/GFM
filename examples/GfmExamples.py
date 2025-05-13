@@ -70,7 +70,7 @@ class GfmExampleBase(lightning.LightningModule):
                 case "L2":
                     dist = HyperBallUniform(self.cfg.example.dimension, scale=self.cfg.method.scale)
                 case "L_inf":
-                    dist = box_uniform(self.cfg.example.dimension, scale=self.cfg.method.scale)
+                    dist = box_uniform(torch.zeros(self.cfg.example.dimension), scale=self.cfg.method.scale)
                 case "mirror_2" | "mirror_inf":
                     dist = MultivariateNormal(
                         torch.zeros(self.cfg.example.dimension),

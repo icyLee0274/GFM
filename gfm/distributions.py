@@ -61,7 +61,7 @@ class HyperBoxUniform(TorchDistribution):
 
     def rsample(self, sample_shape: torch.Size = torch.Size()) -> torch.Tensor:
         shape = self._extended_shape(sample_shape)
-        return torch.rand(shape) * self.scale + self.loc
+        return torch.rand(shape, device=self.loc.device) * self.scale + self.loc
 
 
 def box_uniform(loc: Tensor | int = 1, scale: float | Tensor = 1.) -> HyperBoxUniform:
