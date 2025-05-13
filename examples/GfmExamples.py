@@ -246,7 +246,7 @@ class GfmExampleBase(lightning.LightningModule):
         training_data = self.transform(data)
         return [
             DataLoader(
-                TensorDataset(training_data),
+                TensorDataset(training_data.cpu()),
                 batch_size=self.cfg.train.batch_size,
                 shuffle=True,
                 # https://stackoverflow.com/questions/68621210/runtimeerror-expected-a-cuda-device-type-for-generator-but-found-cpu
