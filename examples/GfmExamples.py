@@ -287,11 +287,13 @@ class GfmExampleBase(lightning.LightningModule):
         self.log("mmd", mmd)
         self.log("feasible", fea)
 
-        if self.cfg.test.get("save_samples", False):
+        if self.cfg.test.get("save_gen", False):
             i = 0
             while os.path.exists(f"gen_samples_{i}.pt"):
                 i += 1
-            torch.save(x_1, f"gen_samples_{i}.pt")
+            f_name = os.path.abspath(f"gen_samples_{i}.pt")
+            torch.save(x_1, f_name)
+            logger.info(f"Saved gen samples to {f_name}")
 
         return {
             "loss": 0,
