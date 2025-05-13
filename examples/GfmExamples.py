@@ -47,13 +47,14 @@ class GfmExampleBase(lightning.LightningModule):
 
         #### The following buffers are for DDPM only ####
         # Precompute forward process constants
-        beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
-        alpha = 1. - beta
-        self.register_buffer('beta', beta)
-        self.register_buffer('alpha', alpha)
-        self.register_buffer('alpha_bar', torch.cumprod(alpha, dim=0))
-        self.register_buffer('sqrt_alpha_bar', torch.sqrt(self.alpha_bar))
-        self.register_buffer('sqrt_one_minus_alpha_bar', torch.sqrt(1 - self.alpha_bar))
+        if self.method.name == "ddpm":
+            beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
+            alpha = 1. - beta
+            self.register_buffer('beta', beta)
+            self.register_buffer('alpha', alpha)
+            self.register_buffer('alpha_bar', torch.cumprod(alpha, dim=0))
+            self.register_buffer('sqrt_alpha_bar', torch.sqrt(self.alpha_bar))
+            self.register_buffer('sqrt_one_minus_alpha_bar', torch.sqrt(1 - self.alpha_bar))
 
     def get_loss(self):
         loss = getattr(self, "_loss", None)

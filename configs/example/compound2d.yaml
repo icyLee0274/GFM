@@ -1,5 +1,5 @@
 name: Compound 2D
-implementation: Compound
+implementation: Compound2D
 dimension: 2
 
 data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
