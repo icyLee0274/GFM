@@ -114,7 +114,7 @@ def on_test(cfg: DictConfig):
         "transformation_time": t_time,
         "integral_time": i_time,
         "method": cfg.method.name,
-    }).to_csv(os.path.join(cfg.out_prefix, "results.csv"), index=False)
+    }).to_csv(os.path.join(cfg.out_prefix, f"{cfg.method.name}.csv"), index=False)
 
 
 if __name__ == "__main__":
