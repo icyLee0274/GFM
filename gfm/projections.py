@@ -22,11 +22,11 @@ class EllipsoidProjector:
         :param h: Vector of size L.
         """
         with torch.no_grad():
-            self.Qs = Qs.numpy()
-            self.ps = ps.numpy()
-            self.bs = bs.numpy()
-            self.G = G.numpy() if G is not None else None
-            self.h = h.numpy() if h is not None else None
+            self.Qs = Qs.cpu().numpy()
+            self.ps = ps.cpu().numpy()
+            self.bs = bs.cpu().numpy()
+            self.G = G.cpu().numpy() if G is not None else None
+            self.h = h.cpu().numpy() if h is not None else None
             self.dim = Qs.shape[1]
             self.n_constraints = Qs.shape[0]
             self.In = np.eye(self.dim)

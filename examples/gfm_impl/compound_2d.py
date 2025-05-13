@@ -48,11 +48,11 @@ class Compound2D(examples.GfmExampleBase):
         domain = gfm.Intersection(linear, ball, ellipsoid)
 
         if self.cfg.example.interior_point is None:
-            A_np = A.detach().numpy()
-            b_np = b.detach().numpy()
+            A_np = A.cpu().numpy()
+            b_np = b.cpu().numpy()
             c0_np = np.array([.3, .2])
-            Q_np = Q.detach().numpy()
-            p_np = p.detach().numpy()
+            Q_np = Q.cpu().numpy()
+            p_np = p.cpu().numpy()
 
             a = cp.Variable()
             x = cp.Variable(2)
