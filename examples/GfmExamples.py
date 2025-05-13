@@ -44,7 +44,7 @@ class PriorDataset(Dataset):
 
     def __getitem__(self, idx):
         # Ignore idx; just return a fresh sample
-        sample = self.distribution.sample([len(idx)])
+        sample = self.distribution.sample([1])
         return sample
 
 
