@@ -282,7 +282,7 @@ class GfmExampleBase(lightning.LightningModule):
         data = self.get_data()
         # kl = co.estimation(x_1.cpu().numpy(), data.cpu().numpy())
         mmd = maximum_mean_discrepancy(x_1, data)
-        fea = self.get_domain().check_feasibility_v(x_1).sum().view(dtype=torch.float32)
+        fea = self.get_domain().check_feasibility_v(x_1).sum() * 1.0
         # self.log("kl", kl)
         self.log("mmd", mmd)
         self.log("feasible", fea)
