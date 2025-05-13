@@ -94,8 +94,10 @@ class Compound2D(examples.GfmExampleBase):
                     Tensor([2, .6]).to(self.device),
                     .17 * Tensor([[.4, -.1], [-.1, .7]]).to(self.device),
                 ),
-                weights=Tensor([.4, .3, .4])
+                weights=Tensor([.4, .3, .4]),
+                device=self.device,
             ),
-            self.get_domain()
+            self.get_domain(),
+            device=self.device,
         )
         return data_dist.sample([n]).to(self.device)  # shape: (n, 2)

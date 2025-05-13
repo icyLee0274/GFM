@@ -118,10 +118,10 @@ class SumDistribution(TorchDistribution):
 
     def rsample(self, sample_shape=torch.Size()):
         shape = self._extended_shape(sample_shape)
-        choices = self.ig.sample(sample_shape)
+        choices = self.ig.sample(sample_shape).to(self.device)
         samples = torch.zeros(shape, device=self.device)
         for index in itertools.product(*[range(i) for i in sample_shape]):
-            samples[index] = self.distributions[choices[index]].rsample(self._one)
+            samples[index] = self.distributions[choices[index]].rsample(self._one).to(self.device)
         return samples
 
 
@@ -150,7 +150,7 @@ class TruncatedDistribution(TorchDistribution):
 
     def _sample_one(self):
         while True:
-            sample = self.distribution.rsample(self._one)
+            sample = self.distribution.rsample(self._one).to(self.device)
             if self.constraint.check_feasibility(sample):
                 return sample
 

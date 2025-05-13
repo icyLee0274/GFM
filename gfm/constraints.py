@@ -271,7 +271,7 @@ class BallConstraint(ConstrainedSet):
         self.r2 = scale * scale
 
     def check_feasibility(self, point: Tensor) -> bool:
-        return torch.linalg.vector_norm(self.loc - point) <= self.r
+        return torch.linalg.vector_norm(self.loc.to(point) - point) <= self.r
 
     def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
         rel_p = (points - self.loc).to(device)
