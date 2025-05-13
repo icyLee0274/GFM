@@ -45,6 +45,16 @@ class GfmExampleBase(lightning.LightningModule):
         )
         self.save_hyperparameters()
 
+        #### The following buffers are for DDPM only ####
+        # Precompute forward process constants
+        beta = torch.linspace(1e-4, 0.02, self.T)
+        alpha = 1. - beta
+        self.register_buffer('beta', beta)
+        self.register_buffer('alpha', alpha)
+        self.register_buffer('alpha_bar', torch.cumprod(alpha, dim=0))
+        self.register_buffer('sqrt_alpha_bar', torch.sqrt(self.alpha_bar))
+        self.register_buffer('sqrt_one_minus_alpha_bar', torch.sqrt(1 - self.alpha_bar))
+
     def get_loss(self):
         loss = getattr(self, "_loss", None)
         if loss is None:
@@ -67,7 +77,7 @@ class GfmExampleBase(lightning.LightningModule):
                     )
                 case None:
                     match self.cfg.method.name:
-                        case "vanilla":
+                        case "vanilla" | "ddpm":
                             dist = MultivariateNormal(
                                 torch.zeros(self.cfg.example.dimension),
                                 self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
@@ -225,6 +235,7 @@ class GfmExampleBase(lightning.LightningModule):
         ]
 
     def training_step(self, batch, batch_idx):
+        if self.cfg.method.name == "ddpm": return self.ddpm_training_step(batch)
         z_1 = batch[0]
         z_0 = self.get_prior().sample([len(z_1)]).to(z_1)
         t = torch.rand(len(z_1), 1).to(z_1)
@@ -232,13 +243,15 @@ class GfmExampleBase(lightning.LightningModule):
         dz_t = z_1 - z_0
         return self.get_loss()(self.velocity(t, z_t), dz_t)
 
+    @torch.no_grad()
     def sample(self, n_samples: int, n_steps: int) -> Tensor:
         start = time()
         z_0 = self.get_prior().sample([n_samples]).to(self.cfg.accelerator)
         prior_time = time() - start
         t = torch.linspace(0, 1, n_steps).to(self.cfg.accelerator)
         start = time()
-        z_1 = odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1]
+        z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm" else
+               odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])
         integral_time = time() - start
         start = time()
         x_1 = self.inverse_transform(z_1)
@@ -248,6 +261,7 @@ class GfmExampleBase(lightning.LightningModule):
         self.log("transform_time", transform_time)
         return x_1
 
+    @torch.no_grad()
     def test_step(self, *args, **kwargs) -> STEP_OUTPUT:
         co = ite.cost.BDKL_KnnK()
         x_1 = self.sample(self.cfg.test.n_gen, self.cfg.test.n_steps)
@@ -258,9 +272,64 @@ class GfmExampleBase(lightning.LightningModule):
         self.log("kl", kl)
         self.log("mmd", mmd)
         self.log("feasible", tensor([fea]))
+
+        if self.cfg.test.get("save_samples", False):
+            i = 0
+            while os.path.exists(f"gen_samples_{i}.pt"):
+                i += 1
+            torch.save(x_1, f"gen_samples_{i}.pt")
+
         return {
             "loss": 0,
             "kl": kl,
             "mmd": mmd,
             "feasible": fea,
         }
+
+    ###### THE FOLLOWING METHODS ARE FOR DDPM ONLY ######
+
+    def q_sample(self, t: Tensor, x_0: Tensor, noise: Tensor) -> Tensor:
+        """
+        Sample from the forward process at time t.
+        :param t: Time step, shape (N, 1)
+        :param x_0: Current sample, shape (N, dim)
+        :param noise: Noise, shape (N, dim)
+        :return: Sample at time t, shape (N, dim)
+        """
+        sqrt_ab = self.sqrt_alpha_bar[t].unsqueeze(-1)
+        sqrt_1mab = self.sqrt_one_minus_alpha_bar[t].unsqueeze(-1)
+        return sqrt_ab * x_0 + sqrt_1mab * noise
+
+    def p_sample(self, t: Tensor, x_t: Tensor) -> Tensor:
+        """
+        Sample from the reverse process at time t.
+        :param t: Time step, shape (N, 1)
+        :param x_t: Current sample, shape (N, dim)
+        :return: Sample at time t-1, shape (N, dim)
+        """
+        pred_noise = self.velocity(t / self.cfg.method.horizon, x_t)
+        beta_t = self.beta[t].unsqueeze(-1)
+        alpha_t = self.alpha[t].unsqueeze(-1)
+        alpha_bar_t = self.alpha_bar[t].unsqueeze(-1)
+
+        mean = (1 / torch.sqrt(alpha_t)) * (x_t - beta_t / torch.sqrt(1 - alpha_bar_t) * pred_noise)
+        if t[0] == 0:
+            return mean
+        noise = torch.randn_like(x_t)
+        return mean + torch.sqrt(beta_t) * noise
+
+    def ddpm_train_step(self, batch):
+        x0 = batch[0]
+        t = torch.randint(0, self.T, (x0.size(0),), device=x0.device)
+        noise = torch.randn_like(x0)
+        xt = self.q_sample(t, x0, noise)
+        pred_noise = self.velocity(t / self.cfg.method.horizon, xt)
+        loss = self.get_loss()(pred_noise, noise)
+        return loss
+
+    def integrate_ddpm(self, x0: Tensor) -> Tensor:
+        x = x0
+        for t in reversed(range(self.cfg.method.horizon)):
+            t_batch = torch.full((x0.shape[0],), t, dtype=torch.long, device=x0.device)
+            x = self.p_sample(t_batch, x)
+        return x

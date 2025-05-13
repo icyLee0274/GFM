@@ -123,13 +123,13 @@ class GaugeMap:
         and the mapped points are on the manifold.
 
         This method implements the (geodesic) gauge map:
-        \[
+        .. math::
                 \Phi(z) &= \exp_{x^\circ}(d_\mathcal{U}(x^\circ, z/||z||) \cdot z) \\
-                        &= \exp_{x^circ}(||z|| d_\mathcal{U}(x^\circ, z) \cdot z) \\
-        \]
+                        &= \exp_{x^\circ}(||z|| d_\mathcal{U}(x^\circ, z) \cdot z) \\
+
         where
-                d_\mathcal{U} is the distance to boundary function.
-                \exp_{x^\circ} is the exponential map.
+                - :math:`d_\mathcal{U}` is the distance to boundary function.
+                - :math:`\exp_{x^\circ}` is the exponential map.
 
         :param zs: Points in the unit ball in the tangent space, not checked.
         :param tol: Tolerance.

@@ -1,0 +1,7 @@
+name: "ddpm"
+transform: ~ # L2, L_inf, mirror_2, mirror_inf
+scale: 1
+
+#prior_center: ~
+
+horizon: 1000
