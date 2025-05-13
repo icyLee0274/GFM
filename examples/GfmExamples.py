@@ -47,7 +47,7 @@ class GfmExampleBase(lightning.LightningModule):
 
         #### The following buffers are for DDPM only ####
         # Precompute forward process constants
-        if self.method.name == "ddpm":
+        if self.cfg.method.name == "ddpm":
             beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
             alpha = 1. - beta
             self.register_buffer('beta', beta)
