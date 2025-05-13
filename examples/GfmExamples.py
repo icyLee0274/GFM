@@ -302,8 +302,8 @@ class GfmExampleBase(lightning.LightningModule):
         :param noise: Noise, shape (N, dim)
         :return: Sample at time t, shape (N, dim)
         """
-        sqrt_ab = self.sqrt_alpha_bar[t].unsqueeze(-1)
-        sqrt_1mab = self.sqrt_one_minus_alpha_bar[t].unsqueeze(-1)
+        sqrt_ab = self.sqrt_alpha_bar[t].unsqueeze(-1).to(t)
+        sqrt_1mab = self.sqrt_one_minus_alpha_bar[t].unsqueeze(-1).to(t)
         return sqrt_ab * x_0 + sqrt_1mab * noise
 
     def p_sample(self, t: Tensor, x_t: Tensor) -> Tensor:
@@ -314,9 +314,9 @@ class GfmExampleBase(lightning.LightningModule):
         :return: Sample at time t-1, shape (N, dim)
         """
         pred_noise = self.velocity(t / self.cfg.method.horizon, x_t)
-        beta_t = self.beta[t].unsqueeze(-1)
-        alpha_t = self.alpha[t].unsqueeze(-1)
-        alpha_bar_t = self.alpha_bar[t].unsqueeze(-1)
+        beta_t = self.beta[t].unsqueeze(-1).to(t)
+        alpha_t = self.alpha[t].unsqueeze(-1).to(t)
+        alpha_bar_t = self.alpha_bar[t].unsqueeze(-1).to(t)
 
         mean = (1 / torch.sqrt(alpha_t)) * (x_t - beta_t / torch.sqrt(1 - alpha_bar_t) * pred_noise)
         if t[0] == 0:
