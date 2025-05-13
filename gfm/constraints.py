@@ -221,10 +221,10 @@ class LinearConstraint(ConstrainedSet):
         :param x: 2D Tensor of size n * p of points evaluated at.
         :return: A 2D Tensor os size n * K.
         """
-        return torch.matmul(x, self.At)
+        return torch.matmul(x, self.At.to(x))
 
     def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
-        return torch.all((points.mm(self.At.to(device)) <= self.b.to(device)), dim=1).to(device)
+        return torch.all((points.mm(self.At.to(points)) <= self.b.to(points)), dim=1).to(device)
 
     def check_feasibility(self, point: Tensor) -> bool:
         return self.check_feasibility_v(point.view(1, -1), point.device)[0].item()
@@ -242,13 +242,13 @@ class LinearConstraint(ConstrainedSet):
 
             t = (b - a^T o) / a^T v
         """
-        ao = self._eval_lhs(os).to(device)  # n * K
-        av = self._eval_lhs(vs).to(device)  # n * K
-        ii = torch.isclose(av, torch.zeros_like(av, device=device))
-        fs = torch.all(ao <= self.b.to(device), dim=1).logical_not().to(device)
+        ao = self._eval_lhs(os)  # n * K
+        av = self._eval_lhs(vs)  # n * K
+        ii = torch.isclose(av, torch.zeros_like(av))
+        fs = torch.all(ao <= self.b.to(ao), dim=1).logical_not()
 
         av[ii] = 1
-        ts = (self.b.to(device) - ao) / av
+        ts = (self.b.to(ao) - ao) / av
         ts[ts < 0] = torch.inf
         ts[ii] = torch.inf
         ts = torch.min(ts, dim=1)[0]
@@ -281,9 +281,10 @@ class BallConstraint(ConstrainedSet):
             self,
             os: Tensor, vs: Tensor,
             tol: float = 1e-6, thresh: float = 1e8,
-            device=torch.get_default_device()) -> Tensor:
+            device=None) -> Tensor:
+        if device is None: device = os.device
         n = vs.shape[0]
-        bs = os - self.loc
+        bs = os - self.loc.to(device)
         bb = torch.einsum("ik, ik -> i", bs, bs)
 
         fs = bb <= self.r2
@@ -374,10 +375,10 @@ class QuadraticConstraint(ConstrainedSet):
         return ts
 
     def _a_Q_b_(self, a: Tensor, b: Tensor) -> Tensor:
-        return torch.einsum("ik, kl, il -> i", a, self.Q, b)
+        return torch.einsum("ik, kl, il -> i", a, self.Q.to(a), b)
 
     def _p_x_(self, x: Tensor) -> Tensor:
-        return torch.matmul(x, self.p)
+        return torch.matmul(x, self.p.to(x))
 
 
 def ConeConstraint(A: Tensor, b: Tensor, c: Tensor, d: float) -> QuadraticConstraint:
@@ -386,7 +387,7 @@ def ConeConstraint(A: Tensor, b: Tensor, c: Tensor, d: float) -> QuadraticConstr
 
     Q = A.T @ A - c @ c.T
     p = 2 * (b.T @ A - d * c.T)
-    r = torch.sum(b * b) - d * d
+    r = torch.sum(b * b).item() - d * d
     return QuadraticConstraint(Q, p, r)
 
 
@@ -410,8 +411,7 @@ class SemiDefiniteConstraint(ConstrainedSet):
         return torch.all(eig >= 0).item()
 
     def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
-        n = points.shape[0]
-        Gs = self.F0 + torch.einsum("nk, kij -> nij", points, self.Fs)
+        Gs = self.F0.to(points) + torch.einsum("nk, kij -> nij", points, self.Fs.to(points))
         es = torch.linalg.eigvalsh(Gs)
         return torch.all(es >= 0, dim=1)
 
@@ -422,10 +422,11 @@ class SemiDefiniteConstraint(ConstrainedSet):
             self,
             os: Tensor, vs: Tensor,
             tol: float = 1e-6, thresh: float = 1e8,
-            device=torch.get_default_device()
+            device=None
     ):
-        Hs = self.F0 + torch.einsum("nk, kij -> nij", os, self.Fs)
-        Ss = torch.einsum("nk, kij -> nij", vs, self.Fs)
+        if device is None: device = os.device
+        Hs = self.F0.to(os) + torch.einsum("nk, kij -> nij", os, self.Fs.to(os))
+        Ss = torch.einsum("nk, kij -> nij", vs, self.Fs.to(vs))
         ls = torch.linalg.eigvalsh(-torch.matmul(torch.linalg.inv(Hs), Ss))[:, -1].to(device)
         ts = torch.full([vs.shape[0]], torch.inf, device=device)
         ts[ls > 0] = 1 / ls[ls > 0]
