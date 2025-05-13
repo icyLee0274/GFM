@@ -5,6 +5,7 @@ from math import sqrt
 from omegaconf import DictConfig
 import torch, numpy as np
 from torch import Tensor, tensor
+from torch.distributions import MultivariateNormal
 import cvxpy as cp
 
 import gfm
@@ -76,3 +77,25 @@ class Compound2D(examples.GfmExampleBase):
         ip = torch.from_numpy(ip).to(device=device, dtype=torch.float32)
 
         return domain, ip
+
+    @torch.no_grad()
+    def _init_data(self, n: int) -> Tensor:
+        data_dist = gfm.TruncatedDistribution(
+            gfm.SumDistribution(
+                MultivariateNormal(
+                    torch.zeros(2).to(self.device),
+                    .08 * Tensor([[4, 0], [0, 1]]).to(self.device),
+                ),
+                MultivariateNormal(
+                    Tensor([1, 1.2]).to(self.device),
+                    .15 * Tensor([[1, 2], [2, 6]]).to(self.device),
+                ),
+                MultivariateNormal(
+                    Tensor([2, .6]).to(self.device),
+                    .17 * Tensor([[.4, -.1], [-.1, .7]]).to(self.device),
+                ),
+                weights=Tensor([.4, .3, .4])
+            ),
+            self.get_domain()
+        )
+        return data_dist.sample([n]).to(self.device)  # shape: (n, 2)
