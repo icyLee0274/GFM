@@ -92,17 +92,17 @@ class GaugeMap:
         :param kwargs: Arguments passing to: method:`GaugeMap.boundary_dist`, :see:method:`ConstrainedSet.eval_manifold_intersection_v`.
         :return: Tensor of mapped points inside the unit ball in the tangent space.
         """
-        x0 = self.x0.expand(xs.shape[0], -1)
+        x0 = self.x0.expand(xs.shape[0], -1).to(xs)
         # tangent vectors at x0 to xs
         us = self.log_map(x0, xs)
         # distances from x0 to xs
-        rs = torch.linalg.vector_norm(us, dim=-1, keepdim=True, ord=self.p).to(device)
+        rs = torch.linalg.vector_norm(us, dim=-1, keepdim=True, ord=self.p).to(us)
         ii = torch.flatten(rs >= tol)
         # normalize the tangent vectors
         vs = us[ii] / rs[ii]
         zs = torch.zeros_like(xs)
         # point-to-boundary distance: d_\mathcal{U}(x^\circ, v_x)
-        ds = self.boundary_dist(x0[ii], vs, tol, thresh, device, **kwargs)
+        ds = self.boundary_dist(x0[ii], vs, tol, thresh, xs.device, **kwargs)
         zs[ii, :] = us / ds
 
         return zs

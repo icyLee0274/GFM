@@ -76,7 +76,11 @@ def on_test(cfg: DictConfig):
     impl = getattr(impls, cfg.example.implementation, None)
     if impl is None: raise NotImplementedError(
         f"Implementation {cfg.example.implementation} for example {cfg.example.name} not found.")
-    model = impl.load_from_checkpoint(os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"), cfg=cfg)
+    model = impl.load_from_checkpoint(
+        cfg.test.checkpoint if cfg.test.get("checkpoint", None) is not None else
+        os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"),
+        cfg=cfg,
+    )
     logger.info("Model initialized.")
 
     trainer = lightning.Trainer(
