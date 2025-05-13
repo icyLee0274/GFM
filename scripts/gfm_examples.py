@@ -11,8 +11,6 @@ import numpy as np
 import cvxpy as cp
 import pandas as pd
 
-import examples.gfm_impl.polytope
-
 sys.path.append('../')
 import examples.gfm_impl as impls
 
@@ -21,13 +19,18 @@ logger = logging.getLogger(__name__)
 
 @hydra.main(config_path="../configs", config_name="gfm_examples", version_base=None)
 def main(cfg: DictConfig):
-    # if cfg.accelerator == "gpu":
-    #     if torch.cuda.is_available():
-    #         torch.set_default_device(f"cuda:{cfg.devices[0]}")
-    #     elif torch.backends.mps.is_available():
-    #         torch.set_default_device("mps")
-    #     else:
-    #         raise RuntimeError("Cannot determine GPU device.")
+    if cfg.accelerator == "gpu":
+        if torch.cuda.is_available():
+            if cfg.devices is not str and hasattr(cfg.devices, "__getitem__"):
+                torch.set_default_device(f"cuda:{cfg.devices[0]}")
+            else:
+                torch.set_default_device("cuda")
+        elif torch.backends.mps.is_available():
+            torch.set_default_device("mps")
+        else:
+            raise RuntimeError("Cannot determine GPU device.")
+    else:
+        torch.set_default_device(cfg.accelerator)
 
     torch.set_default_dtype(torch.float32)
 
