@@ -47,7 +47,7 @@ class GfmExampleBase(lightning.LightningModule):
 
         #### The following buffers are for DDPM only ####
         # Precompute forward process constants
-        beta = torch.linspace(1e-4, 0.02, self.T)
+        beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
         alpha = 1. - beta
         self.register_buffer('beta', beta)
         self.register_buffer('alpha', alpha)
@@ -318,9 +318,9 @@ class GfmExampleBase(lightning.LightningModule):
         noise = torch.randn_like(x_t)
         return mean + torch.sqrt(beta_t) * noise
 
-    def ddpm_train_step(self, batch):
+    def ddpm_training_step(self, batch):
         x0 = batch[0]
-        t = torch.randint(0, self.T, (x0.size(0),), device=x0.device)
+        t = torch.randint(0, self.cfg.method.horizon, (x0.size(0),), device=x0.device)
         noise = torch.randn_like(x0)
         xt = self.q_sample(t, x0, noise)
         pred_noise = self.velocity(t / self.cfg.method.horizon, xt)

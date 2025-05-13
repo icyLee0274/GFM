@@ -27,6 +27,7 @@ class MlpVelocityField(nn.Module):
     def forward(self, t: Tensor, x_t: Tensor) -> Tensor:
         if t.dim() == 0 or (t.dim() == 1 and t.shape[0] == 1):
             t = t.expand(len(x_t), 1)
+        if t.dim() == 1: t = t.view(-1, 1)
         return self.net(torch.cat((t, x_t), dim=1))
 
 

@@ -22,12 +22,15 @@ class StarDomain(gfm.ConstrainedSet):
         rhs = self.gamma(points)
         return lhs <= rhs
 
+    def check_feasibility(self, point: Tensor) -> bool:
+        return self.check_feasibility_v(point.view(1, -1)).item()
+
     def eval_intersection_v(
             self,
             os: Tensor, vs: Tensor,
             tol: float = 1e-6, thresh: float = 1e8,
             device=torch.get_default_device()) -> Tensor:
-        return 1 / self.gamma(vs)
+        return self.gamma(vs)
 
 
 class Star(examples.GfmExampleBase):
