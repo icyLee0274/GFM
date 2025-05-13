@@ -92,14 +92,14 @@ def on_test(cfg: DictConfig):
     res = trainer.test(model)
 
     if len(res) == 1:
-        kl = [r["kl"] for r in res]
+        # kl = [r["kl"] for r in res]
         mmd = [r["mmd"] for r in res]
         fea = [r["feasible"] for r in res]
         p_time = [r["prior_time"] for r in res]
         t_time = [r["transform_time"] for r in res]
         i_time = [r["integral_time"] for r in res]
     else:
-        kl = [r[f"kl/dataloader_idx_{i}"] for i, r in enumerate(res)]
+        # kl = [r[f"kl/dataloader_idx_{i}"] for i, r in enumerate(res)]
         mmd = [r[f"mmd/dataloader_idx_{i}"] for i, r in enumerate(res)]
         fea = [r[f"feasible/dataloader_idx_{i}"] for i, r in enumerate(res)]
         p_time = [r[f"prior_time/dataloader_idx_{i}"] for i, r in enumerate(res)]
@@ -107,7 +107,7 @@ def on_test(cfg: DictConfig):
         i_time = [r[f"integral_time/dataloader_idx_{i}"] for i, r in enumerate(res)]
 
     pd.DataFrame({
-        "kl": kl,
+        # "kl": kl,
         "mmd": mmd,
         "feasible": fea,
         "prior_time": p_time,
