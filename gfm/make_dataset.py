@@ -171,6 +171,7 @@ def solve_qp(args):
 
 def make_soc(
         num_var: int,
+        mat_dim: int,
         num_ineq: int,
         seed: int | None = None,
         solver: str = 'mosek',
@@ -182,6 +183,7 @@ def make_soc(
         || Ax + b ||_2 <= c^Tx + d.
     \]
     :param num_var: Number of variables, i.e., dimension.
+    :param mat_dim: Dimension of the matrix.
     :param num_ineq: Number of inequalities.
     :param seed: Random seed.
     :param solver: String of cvxpy solver.
@@ -190,8 +192,8 @@ def make_soc(
     """
     rng = np.random.default_rng(seed)
 
-    As = rng.normal(size=(num_ineq, num_var, num_var))
-    bs = rng.normal(size=(num_ineq, num_var))
+    As = rng.normal(size=(num_ineq, mat_dim, num_var))
+    bs = rng.normal(size=(num_ineq, mat_dim))
     cs = rng.normal(size=(num_ineq, num_var))
     xs = rng.normal(size=(num_ineq, num_var))
     ds = (np.linalg.norm((As @ xs[:, :, np.newaxis]).squeeze() + bs, axis=1)
