@@ -48,7 +48,7 @@ class GfmExampleBase(lightning.LightningModule):
 
         #### The following buffers are for DDPM only ####
         # Precompute forward process constants
-        if self.cfg.method.name == "ddpm":
+        if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis":
             beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
             alpha = 1. - beta
             self.register_buffer('beta', beta)
@@ -166,7 +166,7 @@ class GfmExampleBase(lightning.LightningModule):
                     rf = self._project_rf()
                 case "gauge_reflect":
                     rf = cube_reflect if self.cfg.method.transform == "L_inf" else ball_reflect
-                case "gauge_project.yaml":
+                case "gauge_project":
                     rf = cube_project if self.cfg.method.transform == "L_inf" else ball_project
                 case _:
                     raise NotImplementedError
@@ -277,8 +277,8 @@ class GfmExampleBase(lightning.LightningModule):
         prior_time = time() - start
         t = torch.linspace(0, 1, n_steps).to(self.device)
         start = time()
-        z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm" else
-               odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])
+        z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis"
+               else odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])
         integral_time = time() - start
         start = time()
         x_1 = self.inverse_transform(z_1)
@@ -325,8 +325,8 @@ class GfmExampleBase(lightning.LightningModule):
         :param noise: Noise, shape (N, dim)
         :return: Sample at time t, shape (N, dim)
         """
-        sqrt_ab = self.sqrt_alpha_bar[t].unsqueeze(-1).to(t)
-        sqrt_1mab = self.sqrt_one_minus_alpha_bar[t].unsqueeze(-1).to(t)
+        sqrt_ab = self.sqrt_alpha_bar[t].unsqueeze(-1).to(x_0)
+        sqrt_1mab = self.sqrt_one_minus_alpha_bar[t].unsqueeze(-1).to(x_0)
         return sqrt_ab * x_0 + sqrt_1mab * noise
 
     def p_sample(self, t: Tensor, x_t: Tensor) -> Tensor:
@@ -337,9 +337,9 @@ class GfmExampleBase(lightning.LightningModule):
         :return: Sample at time t-1, shape (N, dim)
         """
         pred_noise = self.velocity(t * 1.0 / self.cfg.method.horizon, x_t)
-        beta_t = self.beta[t].unsqueeze(-1).to(t)
-        alpha_t = self.alpha[t].unsqueeze(-1).to(t)
-        alpha_bar_t = self.alpha_bar[t].unsqueeze(-1).to(t)
+        beta_t = self.beta[t].unsqueeze(-1).to(x_t)
+        alpha_t = self.alpha[t].unsqueeze(-1).to(x_t)
+        alpha_bar_t = self.alpha_bar[t].unsqueeze(-1).to(x_t)
 
         mean = (1 / torch.sqrt(alpha_t)) * (x_t - beta_t / torch.sqrt(1 - alpha_bar_t) * pred_noise)
         if t[0] == 0:
@@ -349,7 +349,7 @@ class GfmExampleBase(lightning.LightningModule):
         if self.cfg.method.name == "metropolis":
             # check feasibility and reject x_{t-1} if infeasible
             fs = self.get_domain().check_feasibility_v(x_t1, x_t1.device)
-            x_t1[~fs] = x_t1[~fs]
+            x_t1[~fs] = x_t[~fs]
         return x_t1
 
     def ddpm_training_step(self, batch):
