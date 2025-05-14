@@ -69,7 +69,9 @@ class CombinatorialSampler:
         :param cs: m(*1) vector
         """
         self.A = A
+        self.b = b
         self.B = B
+        self.c = c
         self.C = C
         self.Ds = Ds
         self.cs = cs
@@ -179,11 +181,11 @@ class CombinatorialSampler:
         D_vec = s_vec(D)
 
         t_spd_max = self.psd.eval_intersection(X_vec, D_vec)
-        t_spd_min = self.psd.eval_intersection(X_vec, -D_vec)
+        t_spd_min = -self.psd.eval_intersection(X_vec, -D_vec)
         t_linear_max = self.linear.eval_intersection(X_vec, D_vec)
-        t_linear_min = self.linear.eval_intersection(X_vec, -D_vec)
+        t_linear_min = -self.linear.eval_intersection(X_vec, -D_vec)
 
-        return max(t_spd_min, t_linear_min), max(t_spd_max, t_linear_max)
+        return max(t_spd_min, t_linear_min), min(t_spd_max, t_linear_max)
 
     def check_feasibility(self, X_next) -> bool:
         X_vec = s_vec(X_next)
@@ -191,9 +193,9 @@ class CombinatorialSampler:
 
     def density(self, X: Tensor) -> float:
         a = torch.sum(X * self.A.to(X)).item()
-        b = torch.linalg.matrix_norm(X - self.B.to(X)).item()
-        c = torch.linalg.matrix_norm(X - self.C.to(X)).item() ** 2
-        d = torch.log(torch.det(X)).item()
+        b = self.b * torch.linalg.matrix_norm(X - self.B.to(X)).item()
+        c = self.c * torch.linalg.matrix_norm(X - self.C.to(X)).item() ** 2
+        d = torch.log(torch.det(X) + 1e-12).item()
         return exp(-(a + b + c - d))
 
     def sample_lambda(
@@ -210,8 +212,9 @@ class CombinatorialSampler:
             l_next = l_curr + scale * torch.randn(1, generator=generator).item()
             if l_next < lambda_min or l_next > lambda_max: continue
             p_next = self.density(X_curr + l_next * D)
+            if p_next < 1e-12: continue
             ratio = p_next / p_curr
             if torch.rand(1, generator=generator).item() < ratio:
                 l_curr = l_next
                 p_curr = p_next
-        return X_curr + l_curr * D
+        return l_curr

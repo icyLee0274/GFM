@@ -1,7 +1,7 @@
-name: Combinatorial 10
+name: Combinatorial 2
 implementation: Combinatorial
-dimension: 55 # the matrices are 10 * 10 => 55 dimensions (symmetric)
-mat_dim: 10
+dimension: 3 # the actual matrix is 10 * 10 => 55 dimensions (symmetric)
+mat_dim: 2
 
 data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
 n_samples: 10000            # If the file does not exist, generate samples.
