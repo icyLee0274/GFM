@@ -65,7 +65,10 @@ def on_train(cfg: DictConfig):
     )
 
     logger.info("Starting training.")
+    start = time.time()
     trainer.fit(model)
+    train_time = time.time() - start
+    logger.info(f"Training took {train_time} seconds.")
 
     f = os.path.abspath(os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"))
     trainer.save_checkpoint(f)

@@ -1,6 +1,7 @@
 import logging
 from itertools import product
 from math import sqrt
+import os
 
 from omegaconf import DictConfig
 import torch, numpy as np
@@ -67,6 +68,8 @@ class Compound2D(examples.GfmExampleBase):
             if problem.status == cp.OPTIMAL:
                 ip = x.value
                 logger.info(f"Solved interior point: {ip}")
+                np.save("interior_point.npy", ip)
+                logger.info(f"Interior point saved to {os.path.abspath('interior_point.npy')}")
             else:
                 raise RuntimeError("Failed to solve the interior point.")
         elif self.cfg.example.interior_point is str:

@@ -48,7 +48,7 @@ class GfmExampleBase(lightning.LightningModule):
 
         #### The following buffers are for DDPM only ####
         # Precompute forward process constants
-        if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis":
+        if self.cfg.method.name == "ddpm":
             beta = torch.linspace(1e-4, 0.02, self.cfg.method.horizon)
             alpha = 1. - beta
             self.register_buffer('beta', beta)
@@ -87,12 +87,13 @@ class GfmExampleBase(lightning.LightningModule):
                             )
                         case "reflect" | "project" | "metropolis":
                             dist = TruncatedDistribution(
-                                MultivariateNormal(
+                                box_uniform(
                                     self.get_interior_point() if self.cfg.method.prior_center is None
-                                    else tensor(self.cfg.method.prior_center),
-                                    self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
+                                    else tensor(self.cfg.method.prior_center, device=self.device),
+                                    tensor(self.cfg.example.prior_scale, device=self.device),
                                 ),
-                                self.get_domain()
+                                self.get_domain(),
+                                self.device,
                             )
             setattr(self, "_prior", dist)
         return dist
@@ -158,12 +159,14 @@ class GfmExampleBase(lightning.LightningModule):
         rf = getattr(self, "_reflect_fn", None)
         if rf is None:
             match self.cfg.method.name:
-                case "vanilla" | "gauge_vanilla" | "gauge_mirror" | "ddpm" | "metropolis":
+                case "vanilla" | "gauge_vanilla" | "gauge_mirror" | "ddpm":
                     rf = None
                 case "reflect":
                     rf = self._refect_rf()
                 case "project":
                     rf = self._project_rf()
+                case "metropolis":
+                    rf = gfm.MetropolisSampler(self.get_domain())
                 case "gauge_reflect":
                     rf = cube_reflect if self.cfg.method.transform == "L_inf" else ball_reflect
                 case "gauge_project":
@@ -259,7 +262,7 @@ class GfmExampleBase(lightning.LightningModule):
         self.velocity.to(self.device)
 
     def training_step(self, batch, batch_idx):
-        if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis":
+        if self.cfg.method.name == "ddpm":
             return self.ddpm_training_step(batch)
         z_1 = batch[0]
         z_0 = self.get_prior().sample([len(z_1)]).to(z_1)
@@ -277,7 +280,7 @@ class GfmExampleBase(lightning.LightningModule):
         prior_time = time() - start
         t = torch.linspace(0, 1, n_steps).to(self.device)
         start = time()
-        z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis"
+        z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm"
                else odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])
         integral_time = time() - start
         start = time()
@@ -346,10 +349,6 @@ class GfmExampleBase(lightning.LightningModule):
             return mean
         noise = torch.randn_like(x_t)
         x_t1 = mean + torch.sqrt(beta_t) * noise
-        if self.cfg.method.name == "metropolis":
-            # check feasibility and reject x_{t-1} if infeasible
-            fs = self.get_domain().check_feasibility_v(x_t1, x_t1.device)
-            x_t1[~fs] = x_t[~fs]
         return x_t1
 
     def ddpm_training_step(self, batch):

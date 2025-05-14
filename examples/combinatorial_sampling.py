@@ -40,7 +40,9 @@ class CombinatorialSampler:
     def __init__(
             self,
             A: Tensor,
+            b: float,
             B: Tensor,
+            c: float,
             C: Tensor,
             Ds: Tensor,
             cs: Tensor,
@@ -49,7 +51,7 @@ class CombinatorialSampler:
         Matrix sampler that generates d*d matrices from a distribution with the following density:
 
         .. math::
-            \exp\{ -(<A,X> + \|X-B\|_F + \|X-C\|^2_F - \log\det X) \}
+            \exp\{ -(<A,X> + b \|X-B\|_F + c \|X-C\|^2_F - \log\det X) \}
 
             s.t. X \succ 0
 

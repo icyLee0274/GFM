@@ -4,6 +4,7 @@ from .odeint_reflect import *
 
 from .projections import *
 from .reflections import *
+from .metropolis import *
 
 from .constraints import *
 from .distributions import *

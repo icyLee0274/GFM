@@ -21,12 +21,13 @@ class Sphere3D(examples.GfmExampleBase):
 
     def __init__(self, config: DictConfig):
         super().__init__(config)
-        self.manifold: geoopt.Manifold | None = None
 
     def get_manifold(self):
-        if self.manifold is None:
-            self.manifold = geoopt.Sphere(torch.eye(3, device=self.device))
-        return self.manifold
+        manifold = getattr(self, "_manifold", None)
+        if manifold is None:
+            manifold = geoopt.Sphere(torch.eye(3, device=self.device))
+            setattr(self, "_manifold", manifold)
+        return manifold
 
     @torch.no_grad()
     def _init_domain(self) -> tuple[ConstrainedSet, Tensor]:
