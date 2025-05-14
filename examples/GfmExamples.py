@@ -91,8 +91,8 @@ class GfmExampleBase(lightning.LightningModule):
                         case "reflect" | "project" | "metropolis":
                             dist = TruncatedDistribution(
                                 box_uniform(
-                                    self.get_interior_point() if self.cfg.method.prior_center is None
-                                    else tensor(self.cfg.method.prior_center, device=self.device),
+                                    self.get_interior_point() if self.cfg.example.prior_center is None
+                                    else tensor(self.cfg.example.prior_center, device=self.device),
                                     tensor(self.cfg.example.prior_scale, device=self.device),
                                 ),
                                 self.get_domain(),
