@@ -9,6 +9,7 @@ from torch import nn, tensor, Tensor
 import lightning
 from torch.utils.data import DataLoader, TensorDataset
 from torch.distributions import MultivariateNormal
+import geoopt
 
 import ite
 
@@ -131,6 +132,14 @@ class GfmExampleBase(lightning.LightningModule):
             setattr(self, "_data", samples)
         return samples
 
+    def get_manifold(self) -> geoopt.Manifold | None:
+        """
+        Returns the manifold on which the data lies.
+
+        :return: `None` if Euclidean space, otherwise the manifold.
+        """
+        return None
+
     def transform(self, xs: Tensor) -> Tensor:
         transform = getattr(self, "_transform", None)
         if transform is None:
@@ -179,23 +188,24 @@ class GfmExampleBase(lightning.LightningModule):
     def _init_transformation(self):
         transform = getattr(self, "_transform", None)
         inverse_transform = getattr(self, "_inverse_transform", None)
+        manifold = self.get_manifold()
         if transform is None:
             match self.cfg.method.transform:
                 # TODO: scale the gauge map
                 case "L2":
-                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "ball")
+                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "ball", manifold)
                     transform = lambda x: gauge_map.to_disk(x)
                     inverse_transform = lambda x: gauge_map.from_disk(x)
                 case "L_inf":
-                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "cube")
+                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "cube", manifold)
                     transform = lambda x: gauge_map.to_disk(x)
                     inverse_transform = lambda x: gauge_map.from_disk(x)
                 case "mirror_2":
-                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "ball")
+                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "ball", manifold)
                     transform = lambda x: unit_ball_mirror_map(gauge_map.to_disk(x))
                     inverse_transform = lambda x: gauge_map.from_disk(unit_ball_dual_map(x))
                 case "mirror_inf":
-                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "cube")
+                    gauge_map = GaugeMap(self.get_domain(), self.get_interior_point(), "cube", manifold)
                     transform = lambda x: unit_cube_mirror_map(gauge_map.to_disk(x))
                     inverse_transform = lambda x: gauge_map.from_disk(unit_cube_dual_map(x))
                 case None:

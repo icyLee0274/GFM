@@ -60,7 +60,7 @@ class Sphere3D(examples.GfmExampleBase):
         while not torch.all(fs):
             n_gen = n - fs.sum().item()
             vs[~fs, :2] = dist.sample([n_gen])
-            data[~fs, :2] = manifold.expmap(ip.expand(n_gen, -1), vs[~fs])
+            data[~fs] = manifold.expmap(ip.expand(n_gen, -1), vs[~fs])
             fs = domain.check_feasibility_v(data, self.device)
 
         return data
@@ -69,7 +69,7 @@ class Sphere3D(examples.GfmExampleBase):
         manifold = self.get_manifold()
         ip = self.get_interior_point().to(data)
         vs = manifold.logmap(ip.expand(data.shape[0], -1), data)
-        zs = super().transform(data)
+        zs = super().transform(vs)
         return zs
 
     def inverse_transform(self, zs: Tensor) -> Tensor:
