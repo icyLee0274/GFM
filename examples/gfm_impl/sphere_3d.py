@@ -17,6 +17,24 @@ from gfm import ConstrainedSet
 logger = logging.getLogger(__name__)
 
 
+class ManifoldDomain(gfm.ConstrainedSet):
+
+    def __init__(self, domain: gfm.ConstrainedSet, manifold: geoopt.Manifold, x0: Tensor):
+        super().__init__()
+        self.domain = domain
+        self.manifold = manifold
+        self.x0 = x0
+
+    def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
+        x0 = self.x0.to(points).expand_as(points)
+        us = self.manifold.proju(x0, points)
+        xs = self.manifold.proju(x0, us)
+        return self.domain.check_feasibility_v(xs)
+
+    def check_feasibility(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
+        return self.check_feasibility_v(points.view(1, -1), points.device)
+
+
 class Sphere3D(examples.GfmExampleBase):
 
     def __init__(self, config: DictConfig):
@@ -28,6 +46,22 @@ class Sphere3D(examples.GfmExampleBase):
             manifold = geoopt.Sphere(torch.eye(3, device=self.device))
             setattr(self, "_manifold", manifold)
         return manifold
+
+    def get_prior(self) -> torch.distributions.Distribution:
+        if getattr(self, "_prior", None) is None and \
+                (self.cfg.method.name == "reflect" or
+                 self.cfg.method.name == "project" or
+                 self.cfg.method.name == "metropolis"):
+            setattr(self, "_prior", gfm.TruncatedDistribution(
+                gfm.box_uniform(
+                    self.get_interior_point() if self.cfg.example.prior_center is None
+                    else tensor(self.cfg.example.prior_center, device=self.device),
+                    tensor(self.cfg.example.prior_scale, device=self.device),
+                ),
+                ManifoldDomain(self.get_domain(), self.get_manifold(), self.get_interior_point()),
+                self.device,
+            ))
+        return super().get_prior()
 
     @torch.no_grad()
     def _init_domain(self) -> tuple[ConstrainedSet, Tensor]:
