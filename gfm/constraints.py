@@ -231,7 +231,7 @@ class LinearConstraint(ConstrainedSet):
         return self.check_feasibility_v(point.view(1, -1), point.device)[0].item()
 
     def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
-        return self.eval_intersection_v(o, v, tol, thresh, o.device)[0].item()
+        return self.eval_intersection_v(o.view(1, -1), v.view(1, -1), tol, thresh, o.device)[0].item()
 
     def eval_intersection_v(
             self,
@@ -245,11 +245,11 @@ class LinearConstraint(ConstrainedSet):
         """
         ao = self._eval_lhs(os)  # n * K
         av = self._eval_lhs(vs)  # n * K
-        ii = torch.isclose(av, torch.zeros_like(av))
-        fs = torch.all(ao <= self.b.to(ao), dim=1).logical_not()
+        ii = torch.isclose(av, torch.zeros_like(av))  # n * K
+        fs = torch.all(ao <= self.b.to(ao), dim=1).logical_not()  # (n,)
 
         av[ii] = 1
-        ts = (self.b.to(ao) - ao) / av
+        ts = (self.b.to(ao) - ao) / av  # n * K
         ts[ts < 0] = torch.inf
         ts[ii] = torch.inf
         ts = torch.min(ts, dim=1)[0]

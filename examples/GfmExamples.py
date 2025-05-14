@@ -344,7 +344,7 @@ class GfmExampleBase(lightning.LightningModule):
             return mean
         noise = torch.randn_like(x_t)
         x_t1 = mean + torch.sqrt(beta_t) * noise
-        if self.method.name == "metropolis":
+        if self.cfg.method.name == "metropolis":
             # check feasibility and reject x_{t-1} if infeasible
             fs = self.get_domain().check_feasibility_v(x_t1, x_t1.device)
             x_t1[~fs] = x_t1[~fs]

@@ -73,8 +73,8 @@ class CombinatorialSampler:
         self.cs = cs
         self.dim = A.shape[0]
 
-        k = 0
-        Fs = torch.zeros(self.dim + 1, self.dim, self.dim, device=A.device)
+        Fs = torch.zeros(int(self.dim * (self.dim + 1) / 2) + 1, self.dim, self.dim, device=A.device)
+        k = 1
         for i in range(0, self.dim):
             for j in range(i, self.dim):
                 Fs[k, i, j] = 1
@@ -82,9 +82,9 @@ class CombinatorialSampler:
                 k += 1
         self.psd = gfm.SemiDefiniteConstraint(Fs)
 
-        indices = torch.triu_indices(self.dim, self.dim, 0)
+        # indices = torch.triu_indices(self.dim, self.dim, 0)
         _Ds = torch.zeros(Ds.shape[0], int(self.dim * (self.dim + 1) / 2), device=A.device)
-        for i in range(Ds.shape[0]): _Ds[i] = s_vec(-2 * Ds[i] + torch.diag(_Ds[i].diagonal()))
+        for i in range(Ds.shape[0]): _Ds[i] = s_vec(-2 * Ds[i] + torch.diag(Ds[i].diagonal()))
         self.linear = gfm.LinearConstraint(_Ds, -cs)
 
         self.acceptance_rate = 0
