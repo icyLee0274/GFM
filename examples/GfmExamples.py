@@ -84,7 +84,7 @@ class GfmExampleBase(lightning.LightningModule):
                                 torch.zeros(self.cfg.example.dimension),
                                 self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
                             )
-                        case "reflect" | "project":
+                        case "reflect" | "project" | "metropolis":
                             dist = TruncatedDistribution(
                                 MultivariateNormal(
                                     self.get_interior_point() if self.cfg.method.prior_center is None
@@ -149,7 +149,7 @@ class GfmExampleBase(lightning.LightningModule):
         rf = getattr(self, "_reflect_fn", None)
         if rf is None:
             match self.cfg.method.name:
-                case "vanilla" | "gauge_vanilla.yaml" | "gauge_mirror":
+                case "vanilla" | "gauge_vanilla" | "gauge_mirror" | "ddpm" | "metropolis":
                     rf = None
                 case "reflect":
                     rf = self._refect_rf()
@@ -249,7 +249,8 @@ class GfmExampleBase(lightning.LightningModule):
         self.velocity.to(self.device)
 
     def training_step(self, batch, batch_idx):
-        if self.cfg.method.name == "ddpm": return self.ddpm_training_step(batch)
+        if self.cfg.method.name == "ddpm" or self.cfg.method.name == "metropolis":
+            return self.ddpm_training_step(batch)
         z_1 = batch[0]
         z_0 = self.get_prior().sample([len(z_1)]).to(z_1)
         t = torch.rand(len(z_1), 1).to(z_1)
@@ -323,7 +324,7 @@ class GfmExampleBase(lightning.LightningModule):
         :param x_t: Current sample, shape (N, dim)
         :return: Sample at time t-1, shape (N, dim)
         """
-        pred_noise = self.velocity(t / self.cfg.method.horizon, x_t)
+        pred_noise = self.velocity(t * 1.0 / self.cfg.method.horizon, x_t)
         beta_t = self.beta[t].unsqueeze(-1).to(t)
         alpha_t = self.alpha[t].unsqueeze(-1).to(t)
         alpha_bar_t = self.alpha_bar[t].unsqueeze(-1).to(t)
@@ -332,14 +333,19 @@ class GfmExampleBase(lightning.LightningModule):
         if t[0] == 0:
             return mean
         noise = torch.randn_like(x_t)
-        return mean + torch.sqrt(beta_t) * noise
+        x_t1 = mean + torch.sqrt(beta_t) * noise
+        if self.method.name == "metropolis":
+            # check feasibility and reject x_{t-1} if infeasible
+            fs = self.get_domain().check_feasibility_v(x_t1, x_t1.device)
+            x_t1[~fs] = x_t1[~fs]
+        return x_t1
 
     def ddpm_training_step(self, batch):
         x0 = batch[0]
         t = torch.randint(0, self.cfg.method.horizon, (x0.size(0),), device=x0.device)
         noise = torch.randn_like(x0)
         xt = self.q_sample(t, x0, noise)
-        pred_noise = self.velocity(t / self.cfg.method.horizon, xt)
+        pred_noise = self.velocity(t * 1.0 / self.cfg.method.horizon, xt)
         loss = self.get_loss()(pred_noise, noise)
         return loss
 

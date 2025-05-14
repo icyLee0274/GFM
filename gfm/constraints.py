@@ -214,8 +214,9 @@ class LinearConstraint(ConstrainedSet):
 
     def _eval_lhs(self, x: Tensor) -> Tensor:
         """
-        Evaluate the lhs constraints, namely,
+        Evaluate the lhs constraints, namely.
 
+        .. math::
             A * x
 
         :param x: 2D Tensor of size n * p of points evaluated at.
