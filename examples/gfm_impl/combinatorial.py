@@ -93,7 +93,7 @@ class Combinatorial(examples.GfmExampleBase):
 
         domain = gfm.Intersection(psd, linear)
         ip = torch.eye(self.cfg.example.mat_dim, device=self.device)
-        return domain, ip
+        return domain, s_vec(ip)
 
     @torch.no_grad()
     def _init_data(self, n: int) -> Tensor:
