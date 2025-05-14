@@ -17,7 +17,7 @@ from gfm import ConstrainedSet
 logger = logging.getLogger(__name__)
 
 
-class Sphere3d(examples.GfmExampleBase):
+class Sphere3D(examples.GfmExampleBase):
 
     def __init__(self, config: DictConfig):
         super().__init__(config)
@@ -55,11 +55,12 @@ class Sphere3d(examples.GfmExampleBase):
             device=self.device,
         )
         fs = torch.zeros(n, dtype=torch.bool, device=self.device)
+        manifold = self.get_manifold()
 
         while not torch.all(fs):
             n_gen = n - fs.sum().item()
             vs[~fs, :2] = dist.sample([n_gen])
-            data[~fs, :2] = self.manifold.expmap(ip.expand(n_gen, -1), vs[~fs])
+            data[~fs, :2] = manifold.expmap(ip.expand(n_gen, -1), vs[~fs])
             fs = domain.check_feasibility_v(data, self.device)
 
         return data
