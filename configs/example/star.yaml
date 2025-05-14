@@ -5,6 +5,11 @@ dimension: 2
 data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
 n_samples: 10000            # If the file does not exist, generate samples.
 
+interior_point: [ 0.0, 0.0 ]
+
+prior_center: [ 0.0, 0.0 ]
+prior_scale: [ 1.6, 1.6 ]
+
 alpha: 0.5
 n_tips: 5
 scale: 1.0
