@@ -1,5 +1,5 @@
 name: Sphere 2D
-implementation: Compound2D
+implementation: Sphere3D
 dimension: 3
 
 data_file: true_samples.pt  # load samples from out_prefix/file if it exists.
