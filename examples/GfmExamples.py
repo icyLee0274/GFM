@@ -3,6 +3,7 @@ import logging
 from time import time
 
 import torch
+from PIL.ImageOps import scale
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig, OmegaConf
 from torch import nn, tensor, Tensor
@@ -66,24 +67,26 @@ class GfmExampleBase(lightning.LightningModule):
 
     def get_prior(self) -> torch.distributions.Distribution:
         dist = getattr(self, "_prior", None)
+        dim = self.cfg.example.dimension
+        scale = self.cfg.method.scale
         if dist is None:
             match self.cfg.method.transform:
                 case "L2":
-                    dist = HyperBallUniform(self.cfg.example.dimension, scale=self.cfg.method.scale)
+                    dist = HyperBallUniform(dim, scale=scale)
                 case "L_inf":
-                    dist = box_uniform(torch.zeros(self.cfg.example.dimension),
-                                       torch.full([self.cfg.example.dimension], self.cfg.method.scale))
+                    dist = box_uniform(torch.zeros(dim),
+                                       torch.full([dim], scale))
                 case "mirror_2" | "mirror_inf":
                     dist = MultivariateNormal(
-                        torch.zeros(self.cfg.example.dimension),
-                        self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
+                        torch.zeros(dim),
+                        scale * torch.eye(dim)
                     )
                 case None:
                     match self.cfg.method.name:
                         case "vanilla" | "ddpm":
                             dist = MultivariateNormal(
-                                torch.zeros(self.cfg.example.dimension),
-                                self.cfg.method.scale * torch.eye(self.cfg.example.dimension)
+                                torch.zeros(dim),
+                                scale * torch.eye(dim)
                             )
                         case "reflect" | "project" | "metropolis":
                             dist = TruncatedDistribution(

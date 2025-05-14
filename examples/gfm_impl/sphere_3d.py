@@ -76,6 +76,7 @@ class Sphere3D(examples.GfmExampleBase):
     def inverse_transform(self, zs: Tensor) -> Tensor:
         vs = super().inverse_transform(zs)
         manifold = self.get_manifold()
-        ip = self.get_interior_point().to(vs)
-        xs = manifold.expmap(ip.expand(zs.shape[0], -1), vs)
+        ip = self.get_interior_point().to(zs).expand(zs.shape[0], -1)
+        us = manifold.proju(ip, vs)
+        xs = manifold.expmap(ip, us)
         return xs
