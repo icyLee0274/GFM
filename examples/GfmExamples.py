@@ -266,7 +266,9 @@ class GfmExampleBase(lightning.LightningModule):
         t = torch.rand(len(z_1), 1).to(z_1)
         z_t = (1 - t) * z_0 + t * z_1
         dz_t = z_1 - z_0
-        return self.get_loss()(self.velocity(t, z_t), dz_t)
+        loss = self.get_loss()(self.velocity(t, z_t), dz_t)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
 
     @torch.no_grad()
     def sample(self, n_samples: int, n_steps: int) -> Tensor:
@@ -357,6 +359,7 @@ class GfmExampleBase(lightning.LightningModule):
         xt = self.q_sample(t, x0, noise)
         pred_noise = self.velocity(t * 1.0 / self.cfg.method.horizon, xt)
         loss = self.get_loss()(pred_noise, noise)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
         return loss
 
     def integrate_ddpm(self, x0: Tensor) -> Tensor:
