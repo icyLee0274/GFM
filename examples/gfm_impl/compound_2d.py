@@ -135,7 +135,7 @@ class Compound2D(examples.GfmExampleBase):
         p = -2 * c.matmul(Q)
         d = c.matmul(Q).matmul(c) - 1
         ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
-        er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d)
+        er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d.expand(1))
 
         def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
             xs = os + vs

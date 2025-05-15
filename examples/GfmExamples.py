@@ -165,7 +165,7 @@ class GfmExampleBase(lightning.LightningModule):
                 case "vanilla" | "gauge_vanilla" | "gauge_mirror" | "ddpm":
                     rf = None
                 case "reflect":
-                    rf = self._refect_rf()
+                    rf = self._reflect_rf()
                 case "project":
                     rf = self._project_rf()
                 case "metropolis":
