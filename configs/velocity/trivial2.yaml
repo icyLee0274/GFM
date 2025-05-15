@@ -1,3 +1,4 @@
+implementation: "MlpVelocityField"
 width: 64
 depth: 2
 activation: ELU

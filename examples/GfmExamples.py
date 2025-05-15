@@ -22,7 +22,7 @@ from gfm import (
     odeint_reflect,
     cube_reflect, ball_reflect,
     cube_project, ball_project,
-    MlpVelocityField,
+    MlpVelocityField, ResNet,
     HyperBallUniform, box_uniform,
     maximum_mean_discrepancy, ConstrainedSet,
     TruncatedDistribution,
@@ -44,7 +44,13 @@ class GfmExampleBase(lightning.LightningModule):
             cfg.velocity.width,
             cfg.velocity.depth,
             cfg.velocity.activation
-        )
+        ) if cfg.velocity.implementation == "MlpVelocityField" else (
+            ResNet(
+                cfg.example.dimension + 1,
+                cfg.example.dimension,
+                cfg.velocity.width,
+                cfg.velocity.layers,
+            ))
         self.save_hyperparameters()
 
         #### The following buffers are for DDPM only ####

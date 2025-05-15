@@ -1,7 +1,7 @@
 import torch
 from torch import nn, Tensor
 
-__all__ = ["FlowVelocity", "MlpVelocityField"]
+__all__ = ["FlowVelocity", "MlpVelocityField", "ResNet"]
 
 
 class MlpVelocityField(nn.Module):
@@ -61,3 +61,33 @@ class FlowVelocityDeep3(nn.Module):
         if t.dim() == 0 or (t.dim() == 1 and t.shape[0] == 1):
             t = t.expand(len(x_t), 1)
         return self.net(torch.cat((t, x_t), dim=-1))
+
+
+class ResBlock(nn.Module):
+
+    def __init__(self, n_in, n_hid):
+        super().__init__()
+        self.net = nn.Sequential(nn.Linear(n_in, n_hid),
+                                 nn.ReLU(),
+                                 nn.Linear(n_hid, n_in), )
+
+    def forward(self, x):
+        return x + self.net(x)
+
+
+class ResNet(nn.Module):
+
+    def __init__(self, nin, nout, nh, nl):
+        super().__init__()
+        net = [nn.Linear(nin, nh)]
+        for _ in range(nl):
+            net += [ResBlock(nh, nh // 2)]  # nh // 2, nh // 4, nh // 8
+        net.append(nn.Linear(nh, nout))
+
+        self.net = nn.Sequential(*net)
+
+    def forward(self, t: Tensor, x_t: Tensor) -> Tensor:
+        if t.dim() == 0 or (t.dim() == 1 and t.shape[0] == 1):
+            t = t.expand(len(x_t), 1)
+        if t.dim() == 1: t = t.view(-1, 1)
+        return self.net(torch.cat((t, x_t), dim=1))
