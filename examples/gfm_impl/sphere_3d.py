@@ -39,6 +39,7 @@ class Sphere3D(examples.GfmExampleBase):
 
     def __init__(self, config: DictConfig):
         super().__init__(config)
+        self.save_hyperparameters(ignore="_manifold")
 
     def get_manifold(self):
         manifold = getattr(self, "_manifold", None)
