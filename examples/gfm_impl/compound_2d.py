@@ -104,3 +104,103 @@ class Compound2D(examples.GfmExampleBase):
             device=self.device,
         )
         return data_dist.sample([n]).to(self.device)  # shape: (n, 2)
+
+    def _reflect_rf(self):
+        device = self.device
+        A = Tensor([
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+            [0, -1],
+        ]).to(device=device, dtype=torch.float32)
+        b = Tensor([2, 1.5, 0, 0]).to(device)
+        linear = gfm.LinearConstraint(A, b)  # A x <= b
+        lr = gfm.PolytopeReflector(A.T, b)
+
+        # | x + (.3, .2) | <= 2.5
+        ball = gfm.BallConstraint(Tensor([-.3, -.2]).to(device), 2.5)
+        br = gfm.QcReflector(
+            torch.eye(2, device=device).expand(1, -1, -1),
+            torch.tensor([[.6, .4]], device=device),
+            torch.tensor([6.12], device=device),
+        )
+
+        a1 = 2.5
+        a2 = 1
+        v1 = [2, 1]
+        c = Tensor([.5, .45]).to(device)
+        D = torch.diag(Tensor([1 / (a1 * a1), 1 / (a2 * a2)]).to(device))
+        R = Tensor([[v1[0], -v1[1]], [v1[1], v1[0]]]).to(device) / sqrt(sum(v1))
+        Q = R.matmul(D).matmul(R.t())
+        p = -2 * c.matmul(Q)
+        d = c.matmul(Q).matmul(c) - 1
+        ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
+        er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d)
+
+        def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = os + vs
+            fs = self.get_domain().check_feasibility_v(xs, vs.device)
+            for i in torch.nonzero(fs):
+                x0 = xs[i]
+                l = linear.check_feasibility(x0)
+                b = ball.check_feasibility(x0)
+                if not l:
+                    xs[i] = lr(os[i].view(1, -1), vs[i].view(1, -1))
+                elif not b:
+                    xs[i] = br(os[i].view(1, -1), vs[i].view(1, -1))
+                else:
+                    xs[i] = er(os[i].view(1, -1), vs[i].view(1, -1))
+
+            return xs
+
+        return reflect_fn
+
+    def _project_rf(self):
+        device = self.device
+        A_np = np.array([
+            [1, 0],
+            [0, 1],
+            [-1, 0],
+            [0, -1],
+        ])
+        b_np = np.array([2, 1.5, 0, 0])
+
+        # | x + (.3, .2) | <= 2.5
+
+        a1 = 2.5
+        a2 = 1
+        v1 = [2, 1]
+        c = Tensor([.5, .45]).to(device)
+        D = torch.diag(Tensor([1 / (a1 * a1), 1 / (a2 * a2)]).to(device))
+        R = Tensor([[v1[0], -v1[1]], [v1[1], v1[0]]]).to(device) / sqrt(sum(v1))
+        Q = R.matmul(D).matmul(R.t())
+        p = -2 * c.matmul(Q)
+        d = c.matmul(Q).matmul(c) - 1
+
+        c0_np = np.array([.3, .2])
+        Q_np = Q.cpu().numpy()
+        p_np = p.cpu().numpy()
+
+        a = cp.Variable()
+        x = cp.Variable(2)
+
+        constraints = [
+            A_np @ x - b_np <= 0.0,
+            cp.norm(x + c0_np) - 2.5 <= 0.0,
+            cp.QuadForm(x, Q_np) + p_np.T @ x - d.item() <= 0.0,
+        ]
+
+        domain = self.get_domain()
+
+        def project_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = os + vs
+            fs = domain.check_feasibility_v(xs, vs.device)
+            for i in torch.nonzero(fs):
+                x0 = xs[i].cpu().numpy()
+                x = cp.Variable(2)
+                problem = cp.Problem(cp.Minimize(cp.norm(x - x0)), constraints)
+                problem.solve()
+                xs[i] = torch.from_numpy(x.value).to(xs.device)
+            return xs
+
+        return project_fn
