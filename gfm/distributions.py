@@ -25,7 +25,7 @@ class HyperBallUniform(TorchDistribution):
         :param loc: Location parameter of the distribution, if `None`, set to 0
         :param scale: Scale parameter of the distribution, if `None`, set to 1
         """
-        loc = torch.flatten(loc) if loc is not None else None
+        loc = torch.flatten(loc) if loc is not None else torch.zeros(loc)
         if dim is not None:
             self.dim = dim
             if loc is not None:

@@ -78,7 +78,7 @@ class GfmExampleBase(lightning.LightningModule):
         if dist is None:
             match self.cfg.method.transform:
                 case "L2":
-                    dist = HyperBallUniform(dim, scale=scale)
+                    dist = HyperBallUniform(dim, loc=torch.zeros(dim, device=self.device), scale=scale)
                 case "L_inf":
                     dist = box_uniform(torch.zeros(dim),
                                        torch.full([dim], scale))
