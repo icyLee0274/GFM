@@ -186,7 +186,7 @@ class Compound2D(examples.GfmExampleBase):
         constraints = [
             A_np @ x <= b_np,
             cp.norm(x + c0_np) <= 2.5,
-            cp.QuadForm(x, Q_np) + p_np.T @ x - d.item() <= 0.0,
+            cp.QuadForm(x, Q_np) + p_np.T @ x + d.item() <= 0.0,
         ]
 
         domain = self.get_domain()
@@ -196,11 +196,11 @@ class Compound2D(examples.GfmExampleBase):
             fs = domain.check_feasibility_v(xs, vs.device)
             for i in torch.nonzero(~fs):
                 x0 = xs[i].cpu().numpy()
-                problem = cp.Problem(cp.Minimize(0), constraints)
+                problem = cp.Problem(cp.Minimize(cp.sum_squares(x - x0)), constraints)
                 problem.solve(solver=cp.MOSEK)
                 if problem.status == cp.OPTIMAL:
                     xs[i] = torch.from_numpy(x.value).to(xs)
-                    logger.info("Optimal projection solved.")
+                    # logger.info("Optimal projection solved.")
                 else:
                     xs[i] = os[i]
                     logger.error(f"Optimal projection not found: {problem.status}")
