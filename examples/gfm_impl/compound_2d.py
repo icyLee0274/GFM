@@ -134,7 +134,7 @@ class Compound2D(examples.GfmExampleBase):
         Q = R.matmul(D).matmul(R.t())
         p = -2 * c.matmul(Q)
         d = c.matmul(Q).matmul(c) - 1
-        ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
+        # ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
         er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d.expand(1))
 
         def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
@@ -198,9 +198,13 @@ class Compound2D(examples.GfmExampleBase):
             for i in torch.nonzero(fs):
                 x0 = xs[i].cpu().numpy()
                 x = cp.Variable(2)
-                problem = cp.Problem(cp.Minimize(cp.norm(x - x0)), constraints)
+                problem = cp.Problem(cp.Minimize(cp.sum_squares(x - x0)), constraints)
                 problem.solve()
-                xs[i] = torch.from_numpy(x.value).to(xs.device)
+                if problem.status == cp.OPTIMAL:
+                    xs[i] = torch.from_numpy(x.value).to(xs.device)
+                else:
+                    xs[i] = os[i]
+                    logger.error("Optimal projection not found.")
             return xs
 
         return project_fn
