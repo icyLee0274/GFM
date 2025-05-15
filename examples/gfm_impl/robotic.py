@@ -1,4 +1,5 @@
 import logging
+import os
 from itertools import product
 from math import sqrt
 
@@ -92,3 +93,28 @@ class Robotic(examples.GfmExampleBase):
                 raise NotImplementedError(f"Prior distribution not implemented for this method: {self.cfg.method.name}")
             setattr(self, "_prior", dist)
         return dist
+
+    @torch.no_grad()
+    def test_step(self, *args, **kwargs):
+        x_1 = self.sample(self.cfg.test.n_gen, self.cfg.test.n_steps)
+        data = self.get_data()[:80000, :]  # use less data to avoid oom
+        mmd = gfm.maximum_mean_discrepancy(x_1, data)
+        fea = self.get_domain().check_feasibility_v(x_1).sum() * 1.0
+        # self.log("kl", kl)
+        self.log("mmd", mmd)
+        self.log("feasible", fea)
+
+        if self.cfg.test.get("save_gen", False):
+            i = 0
+            while os.path.exists(f"gen_samples_{i}.pt"):
+                i += 1
+            f_name = os.path.abspath(f"gen_samples_{i}.pt")
+            torch.save(x_1, f_name)
+            logger.info(f"Saved gen samples to {f_name}")
+
+        return {
+            "loss": 0,
+            # "kl": kl,
+            "mmd": mmd,
+            "feasible": fea,
+        }
