@@ -78,11 +78,11 @@ class Robotic(examples.GfmExampleBase):
         dim = 3
         scale = self.cfg.method.scale
         if dist is None:
-            if self.method.transform == "L2":
+            if self.cfg.method.transform == "L2":
                 spd_dist = gfm.HyperBallUniform(dim, loc=torch.zeros(dim, device=self.device), scale=scale)
                 pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
                 dist = CatDist(spd_dist, pos_dist)
-            elif self.method.transform == "L_inf":
+            elif self.cfg.method.transform == "L_inf":
                 spd_dist = gfm.box_uniform(torch.zeros(dim), torch.full([dim], scale))
                 pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
                 dist = CatDist(spd_dist, pos_dist)
