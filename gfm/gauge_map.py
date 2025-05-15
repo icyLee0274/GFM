@@ -82,7 +82,7 @@ class GaugeMap:
         Where
             - :math:`\mathcal{U}` is a bounded (geodesic) convex set (over a manifold).
             - :math:`\gamma_\mathcal{U}` is the gauge function.
-            - :math:`U_x = r_x v_x = \log_{x^\circ}(x)`
+            - :math:`u_x = r_x v_x = \log_{x^\circ}(x)`
             - :math:`d_\mathcal{U}` is the distance to boundary function
 
         :param xs: Points on manifold to map, assumed to be already projected onto the manifold.

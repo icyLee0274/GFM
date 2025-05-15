@@ -30,7 +30,7 @@ class StarDomain(gfm.ConstrainedSet):
             os: Tensor, vs: Tensor,
             tol: float = 1e-6, thresh: float = 1e8,
             device=torch.get_default_device()) -> Tensor:
-        return self.gamma(vs)
+        return self.gamma(vs) / torch.linalg.vector_norm(vs, dim=-1)
 
 
 class Star(examples.GfmExampleBase):
