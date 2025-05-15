@@ -197,14 +197,13 @@ class Compound2D(examples.GfmExampleBase):
             fs = domain.check_feasibility_v(xs, vs.device)
             for i in torch.nonzero(fs):
                 x0 = xs[i].cpu().numpy()
-                x = cp.Variable(2)
                 problem = cp.Problem(cp.Minimize(cp.sum_squares(x - x0)), constraints)
                 problem.solve()
                 if problem.status == cp.OPTIMAL:
-                    xs[i] = torch.from_numpy(x.value).to(xs.device)
+                    xs[i] = torch.from_numpy(x.value).to(xs)
                 else:
                     xs[i] = os[i]
-                    logger.error("Optimal projection not found.")
+                    logger.error(f"Optimal projection not found: {problem.status}")
             return xs
 
         return project_fn
