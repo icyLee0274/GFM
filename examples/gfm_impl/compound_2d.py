@@ -194,7 +194,7 @@ class Compound2D(examples.GfmExampleBase):
         def project_fn(os: Tensor, vs: Tensor) -> Tensor:
             xs = os + vs
             fs = domain.check_feasibility_v(xs, vs.device)
-            for i in torch.nonzero(fs):
+            for i in torch.nonzero(~fs):
                 x0 = xs[i].cpu().numpy()
                 problem = cp.Problem(cp.Minimize(cp.sum_squares(x - x0)), constraints)
                 problem.solve(solver=cp.MOSEK)
