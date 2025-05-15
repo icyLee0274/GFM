@@ -42,10 +42,7 @@ class Sphere3D(examples.GfmExampleBase):
         self.save_hyperparameters(ignore="_manifold")
 
     def get_manifold(self):
-        manifold = getattr(self, "_manifold", None)
-        if manifold is None:
-            manifold = geoopt.Sphere(torch.eye(3, device=self.device))
-            setattr(self, "_manifold", manifold)
+        manifold = geoopt.Sphere(torch.eye(3, device=self.device))
         return manifold
 
     def get_prior(self) -> torch.distributions.Distribution:
