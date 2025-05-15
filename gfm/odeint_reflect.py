@@ -10,6 +10,7 @@ def odeint_reflect(
         y0,
         t,
         reflect_fn=None,
+        keep_all=False,
 ):
     """
         Integrate a system of reflecting ordinary differential equations by mid-point method.
@@ -38,6 +39,7 @@ def odeint_reflect(
                 this sequence is taken to be the initial time point.
             reflect_fn: Function that maps a tensor of starting points and a tensor of directions
                 to reflecting end points.
+            keep_all: Whether to keep all intermediate steps or only the last two steps.
 
         Returns:
             y: Tensor, where the first dimension corresponds to different
@@ -46,9 +48,11 @@ def odeint_reflect(
                 dimension.
         """
     n_step = len(t) - 1
-    x_t = torch.empty([n_step + 1, y0.shape[0], y0.shape[1]], device=y0.device)
+    x_t = torch.empty([n_step + 1, y0.shape[0], y0.shape[1]], device=y0.device) if keep_all else \
+        torch.empty([2, y0.shape[0], y0.shape[1]], device=y0.device)
     x_t[0] = y0
     for step in range(n_step):
+        if not keep_all: step = 0
         t0 = t[step]
         t1 = t[step + 1]
         x_step = x_t[step] + (t1 - t0) * func(t0, x_t[step])
