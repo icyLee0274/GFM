@@ -14,7 +14,8 @@ class MetropolisSampler:
         while not fs.all():
             # Sample a new point
             _vs = torch.randn_like(vs[~fs])
-            _vs = _vs / torch.linalg.vector_norm(_vs, dim=-1) * torch.linalg.vector_norm(vs[~fs], dim=-1)
+            _vs = (_vs / torch.linalg.vector_norm(_vs, dim=-1, keepdim=True) *
+                   torch.linalg.vector_norm(vs[~fs], dim=-1, keepdim=True))
             vs[~fs] = _vs
             ds = os + vs
             fs = self.domain.check_feasibility_v(ds)
