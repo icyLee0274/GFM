@@ -1,6 +1,6 @@
 n_gen: 10000
 repeats: 10
-n_steps: 100
+n_steps: 1000
 save_gen: true
 
 checkpoint: ~
