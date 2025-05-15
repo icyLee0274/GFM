@@ -140,7 +140,7 @@ class ConstrainedSet:
         max_iter = kwargs.get("max_iter", 1e5)
         step_size = kwargs.get("step_size", 2)
         n_slice = kwargs.get("n_slice", 100)
-        growth = kwargs.get("growth", "fixed")  # "fixed" or "exponential"
+        growth = kwargs.get("growth", "exponential")  # "fixed" or "exponential"
         t0 = kwargs.get("init", None)
         if t0 is None: t0 = torch.ones(vs.shape[0], device=device)
         if not torch.is_tensor(t0): raise ValueError("`init` must be of type Tensor.")

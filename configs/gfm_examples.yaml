@@ -8,7 +8,7 @@ defaults:
 
 hydra:
   run:
-    dir: output/${example.name}/${now:%m-%d %H:%M:%S}
+    dir: output/${example.name}/${now:%m-%d %H:%M:%S} ${method.name}
   job:
     chdir: true
 

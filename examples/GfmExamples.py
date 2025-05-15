@@ -44,7 +44,7 @@ class GfmExampleBase(lightning.LightningModule):
             cfg.velocity.width,
             cfg.velocity.depth,
             cfg.velocity.activation
-        ) if cfg.velocity.get("Implementation", "MlpVelocityField") == "MlpVelocityField" else (
+        ) if cfg.velocity.get("implementation", "MlpVelocityField") == "MlpVelocityField" else (
             ResNet(
                 cfg.example.dimension + 1,
                 cfg.example.dimension,

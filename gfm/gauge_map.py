@@ -102,7 +102,7 @@ class GaugeMap:
         vs = us[ii] / rs[ii]
         zs = torch.zeros_like(xs)
         # point-to-boundary distance: d_\mathcal{U}(x^\circ, v_x)
-        ds = self.boundary_dist(x0[ii], vs, tol, thresh, xs.device, **kwargs)
+        ds = self.boundary_dist(x0[ii], vs, tol, thresh, xs.device, init=rs.flatten(), **kwargs)
         zs[ii, :] = us / ds
 
         return zs
@@ -148,7 +148,7 @@ class GaugeMap:
         xs = torch.zeros_like(zs)
         xs[~ii] = x0[~ii]
 
-        ds = self.boundary_dist(x0[ii], zs[ii], tol, thresh, zs.device, **kwargs)
+        ds = self.boundary_dist(x0[ii], zs[ii], tol, thresh, zs.device, init=torch.full([rs.shape[0]], tol), **kwargs)
         xs[ii, :] = self.exp_map(x0[ii], ds * rs[ii] * zs[ii])
 
         return xs

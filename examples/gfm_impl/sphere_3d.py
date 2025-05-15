@@ -98,17 +98,35 @@ class Sphere3D(examples.GfmExampleBase):
 
         return data
 
-    def transform(self, data: Tensor) -> Tensor:
+    def _to_tangent(self, data: Tensor) -> Tensor:
         manifold = self.get_manifold()
         ip = self.get_interior_point().to(data)
         vs = manifold.logmap(ip.expand(data.shape[0], -1), data)
-        zs = super().transform(vs)
-        return zs
+        return vs
 
-    def inverse_transform(self, zs: Tensor) -> Tensor:
-        vs = super().inverse_transform(zs)
+    def _from_tangent(self, vs: Tensor) -> Tensor:
         manifold = self.get_manifold()
-        ip = self.get_interior_point().to(zs).expand(zs.shape[0], -1)
+        ip = self.get_interior_point().to(vs).expand(vs.shape[0], -1)
         us = manifold.proju(ip, vs)
         xs = manifold.expmap(ip, us)
         return xs
+
+    def _init_transformation(self):
+        transform = getattr(self, "_transform", None)
+        inverse_transform = getattr(self, "_inverse_transform", None)
+        manifold = self.get_manifold()
+        if transform is None:
+            match self.cfg.method.transform:
+                # TODO: scale the gauge map
+                case "L2":
+                    gauge_map = gfm.GaugeMap(self.get_domain(), self.get_interior_point(), "ball", manifold)
+                    transform = lambda x: gauge_map.to_disk(x, step_size=1.05, thresh=2 * torch.pi)
+                    inverse_transform = lambda x: gauge_map.from_disk(x, step_size=2, thresh=2 * torch.pi, )
+                case None:
+                    transform = lambda x: self._to_tangent(x)
+                    inverse_transform = lambda x: self._from_tangent(x)
+                case _:
+                    raise NotImplementedError(
+                        "Sphere does not support transformations other than L2 gauge or identity.")
+            setattr(self, "_transform", transform)
+            setattr(self, "_inverse_transform", inverse_transform)
