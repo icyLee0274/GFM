@@ -47,7 +47,7 @@ class Robotic(examples.GfmExampleBase):
                 [[0., 0.], [0., 1.]],
             ], dtype=torch.float32, device=self.device)),
             gfm.LinearConstraint(
-                tensor([0., 0., 1., 0., 1.], dtype=torch.float32, device=self.device),
+                tensor([[0., 0., 1., 0., 1.]], dtype=torch.float32, device=self.device),
                 tensor([5.99], dtype=torch.float32, device=self.device),
             )
         )
