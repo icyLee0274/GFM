@@ -181,7 +181,6 @@ class Compound2D(examples.GfmExampleBase):
         Q_np = Q.cpu().numpy()
         p_np = p.cpu().numpy()
 
-        a = cp.Variable()
         x = cp.Variable(2)
 
         constraints = [
@@ -198,7 +197,7 @@ class Compound2D(examples.GfmExampleBase):
             for i in torch.nonzero(fs):
                 x0 = xs[i].cpu().numpy()
                 problem = cp.Problem(cp.Minimize(cp.sum_squares(x - x0)), constraints)
-                problem.solve()
+                problem.solve(solver=cp.MOSEK)
                 if problem.status == cp.OPTIMAL:
                     xs[i] = torch.from_numpy(x.value).to(xs)
                 else:
