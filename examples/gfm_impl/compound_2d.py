@@ -64,7 +64,7 @@ class Compound2D(examples.GfmExampleBase):
                 cp.QuadForm(x, Q_np) + p_np.T @ x - d.item() <= a,
             ]
             problem = cp.Problem(objective, constraints)
-            problem.solve()
+            problem.solve(solver=cp.MOSEK)
             if problem.status == cp.OPTIMAL:
                 ip = x.value
                 logger.info(f"Solved interior point: {ip}")
@@ -185,8 +185,8 @@ class Compound2D(examples.GfmExampleBase):
         x = cp.Variable(2)
 
         constraints = [
-            A_np @ x - b_np <= 0.0,
-            cp.norm(x + c0_np) - 2.5 <= 0.0,
+            A_np @ x <= b_np,
+            cp.norm(x + c0_np) <= 2.5,
             cp.QuadForm(x, Q_np) + p_np.T @ x - d.item() <= 0.0,
         ]
 
