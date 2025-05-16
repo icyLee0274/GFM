@@ -61,7 +61,7 @@ class Compound2D(examples.GfmExampleBase):
             constraints = [
                 A_np @ x - b_np <= a,
                 cp.norm(x + c0_np) - 2.5 <= a,
-                cp.QuadForm(x, Q_np) + p_np.T @ x - d.item() <= a,
+                cp.QuadForm(x, Q_np) + p_np.T @ x + d.item() <= a,
             ]
             problem = cp.Problem(objective, constraints)
             problem.solve(solver=cp.MOSEK)
