@@ -147,38 +147,41 @@ class ConstrainedSet:
 
         if x0s.dim() == 1: x0s = x0s.expand(vs.shape[0], -1)
 
-        # Find the upper bound
-        uppers = t0.clone()
-        cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+        # # Find the upper bound
+        # uppers = t0.clone()
+        # cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+        #
+        # while torch.any(cont):
+        #     nxt = uppers + step_size if growth == "fixed" else uppers * step_size
+        #     nxt[nxt > thresh] = thresh
+        #
+        #     if n_slice > 0:
+        #         for i in torch.nonzero(cont, as_tuple=False):
+        #             ts = torch.linspace(uppers[i].item(), nxt[i].item(), n_slice, device=device)
+        #             xs = manifold.expmap(x0s[i].expand(n_slice, -1), ts.view(-1, 1) * vs[i])
+        #             fs = self.check_feasibility_v(xs, device)
+        #             if torch.any(~fs):
+        #                 uppers[i] = ts[~fs][0]
+        #                 cont[i] = False
+        #         uppers[cont] = nxt[cont]
+        #     else:
+        #         xs = manifold.expmap(x0s[cont], nxt[cont].view(-1, 1) * vs[cont])
+        #         fs = self.check_feasibility_v(xs, device)
+        #         uppers[cont] = nxt[cont]
+        #         cont[cont] = fs
+        #
+        #     cont = cont & (uppers < thresh)
+        #
+        # cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+        # lowers = uppers.clone()
+        # while torch.any(cont):
+        #     lowers[cont] = lowers[cont] / step_size
+        #     xs = manifold.expmap(x0s[cont], lowers[cont].view(-1, 1) * vs[cont])
+        #     cont[cont] = ~self.check_feasibility_v(xs)
+        #     cont[cont] = cont[cont] & (lowers > tol)
 
-        while torch.any(cont):
-            nxt = uppers + step_size if growth == "fixed" else uppers * step_size
-            nxt[nxt > thresh] = thresh
-
-            if n_slice > 0:
-                for i in torch.nonzero(cont, as_tuple=False):
-                    ts = torch.linspace(uppers[i].item(), nxt[i].item(), n_slice, device=device)
-                    xs = manifold.expmap(x0s[i].expand(n_slice, -1), ts.view(-1, 1) * vs[i])
-                    fs = self.check_feasibility_v(xs, device)
-                    if torch.any(~fs):
-                        uppers[i] = ts[~fs][0]
-                        cont[i] = False
-                uppers[cont] = nxt[cont]
-            else:
-                xs = manifold.expmap(x0s[cont], nxt[cont].view(-1, 1) * vs[cont])
-                fs = self.check_feasibility_v(xs, device)
-                uppers[cont] = nxt[cont]
-                cont[cont] = fs
-
-            cont = cont & (uppers < thresh)
-
-        cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
-        lowers = uppers.clone()
-        while torch.any(cont):
-            lowers[cont] = lowers[cont] / step_size
-            xs = manifold.expmap(x0s[cont], lowers[cont].view(-1, 1) * vs[cont])
-            cont[cont] = ~self.check_feasibility_v(xs)
-            cont[cont] = cont[cont] & (lowers > tol)
+        uppers = torch.full_like(t0, thresh, device=device)
+        lowers = torch.zeros_like(t0, device=device)
 
         # Bisection
         ts = t0
