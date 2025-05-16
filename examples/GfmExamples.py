@@ -290,7 +290,7 @@ class GfmExampleBase(lightning.LightningModule):
         t = torch.linspace(0, 1, n_steps).to(self.device)
         start = time()
         z_1 = (self.integrate_ddpm(z_0) if self.cfg.method.name == "ddpm"
-               else odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn(), keep_all=True)[-1])
+               else odeint_reflect(self.velocity, z_0, t, self.get_reflect_fn())[-1])
         integral_time = time() - start
         start = time()
         x_1 = self.inverse_transform(z_1)

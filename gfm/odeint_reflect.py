@@ -52,9 +52,9 @@ def odeint_reflect(
         torch.empty([1, y0.shape[0], y0.shape[1]], device=y0.device)
     x_t[0] = y0
     for step in range(n_step):
-        if not keep_all: step = 0
         t0 = t[step]
         t1 = t[step + 1]
+        if not keep_all: step = 0
         x_step = x_t[step] + (t1 - t0) * func(t0, x_t[step])
         next_idx = step + 1 if keep_all else 0
         if reflect_fn is not None:
