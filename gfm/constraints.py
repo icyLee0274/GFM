@@ -172,9 +172,16 @@ class ConstrainedSet:
 
             cont = cont & (uppers < thresh)
 
+        cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
+        lowers = uppers.clone()
+        while torch.any(cont):
+            lowers[cont] = lowers[cont] / step_size
+            xs = manifold.expmap(x0s[cont], lowers[cont].view(-1, 1) * vs[cont])
+            cont[cont] = ~self.check_feasibility_v(xs)
+            cont[cont] = cont[cont] & (lowers > tol)
+
         # Bisection
         ts = t0
-        lowers = t0.clone()
         cont = torch.ones(vs.shape[0], dtype=torch.bool, device=device)
         mask = torch.ones_like(cont)
 
