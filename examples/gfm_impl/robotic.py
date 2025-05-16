@@ -48,8 +48,15 @@ class Robotic(examples.GfmExampleBase):
                 [[0., 0.], [0., 1.]],
             ], dtype=torch.float32, device=self.device)),
             gfm.LinearConstraint(
-                tensor([[0., 0., 1., 0., 1.]], dtype=torch.float32, device=self.device),
-                tensor([5.99], dtype=torch.float32, device=self.device),
+                tensor([
+                    [0., 0., 1., 0., 1.],
+                    [1., 0., 0., 0., 0.],
+                    [0., 1., 0., 0., 0.],
+                    [-1., 0., 0., 0., 0.],
+                    [0., -1., 0., 0., 0.],
+                ],
+                    dtype=torch.float32, device=self.device),
+                tensor([5.99, 10., 10., 10., 10.], dtype=torch.float32, device=self.device),
             )
         )
         ip = torch.tensor([0., 0., 2., .3, 1.5], dtype=torch.float32, device=self.device)
@@ -74,25 +81,25 @@ class Robotic(examples.GfmExampleBase):
 
         return data
 
-    def get_prior(self) -> torch.distributions.Distribution:
-        dist = getattr(self, "_prior", None)
-        dim = 3
-        scale = self.cfg.method.scale
-        if dist is None:
-            if self.cfg.method.transform == "L2":
-                spd_dist = gfm.HyperBallUniform(dim, loc=torch.zeros(dim, device=self.device), scale=scale)
-                pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
-                dist = CatDist(spd_dist, pos_dist)
-            elif self.cfg.method.transform == "L_inf":
-                spd_dist = gfm.box_uniform(torch.zeros(dim), torch.full([dim], scale))
-                pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
-                dist = CatDist(spd_dist, pos_dist)
-            elif self.cfg.method.name == "vanilla" or self.cfg.method.name == "ddpm":
-                dist = MultivariateNormal(torch.zeros(5, device=self.device), torch.eye(5, device=self.device))
-            else:
-                raise NotImplementedError(f"Prior distribution not implemented for this method: {self.cfg.method.name}")
-            setattr(self, "_prior", dist)
-        return dist
+    # def get_prior(self) -> torch.distributions.Distribution:
+    #     dist = getattr(self, "_prior", None)
+    #     dim = 3
+    #     scale = self.cfg.method.scale
+    #     if dist is None:
+    #         if self.cfg.method.transform == "L2":
+    #             spd_dist = gfm.HyperBallUniform(dim, loc=torch.zeros(dim, device=self.device), scale=scale)
+    #             pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
+    #             dist = CatDist(spd_dist, pos_dist)
+    #         elif self.cfg.method.transform == "L_inf":
+    #             spd_dist = gfm.box_uniform(torch.zeros(dim), torch.full([dim], scale))
+    #             pos_dist = MultivariateNormal(torch.zeros(2, device=self.device), torch.eye(2, device=self.device))
+    #             dist = CatDist(spd_dist, pos_dist)
+    #         elif self.cfg.method.name == "vanilla" or self.cfg.method.name == "ddpm":
+    #             dist = MultivariateNormal(torch.zeros(5, device=self.device), torch.eye(5, device=self.device))
+    #         else:
+    #             raise NotImplementedError(f"Prior distribution not implemented for this method: {self.cfg.method.name}")
+    #         setattr(self, "_prior", dist)
+    #     return dist
 
     @torch.no_grad()
     def test_step(self, *args, **kwargs):
