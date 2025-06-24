@@ -241,7 +241,10 @@ class LinearConstraint(ConstrainedSet):
         return self.check_feasibility_v(point.view(1, -1), point.device)[0].item()
 
     def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
-        return self.eval_intersection_v(o.view(1, -1), v.view(1, -1), tol, thresh, o.device)[0].item()
+        if o.dim() == 1: o = o.view(1, -1)
+        if v.dim() == 1: v = v.view(1, -1)
+        fs = self.eval_intersection_v(o, v, tol, thresh)
+        return fs.item() if fs.dim() == 0 else fs[0].item()
 
     def eval_intersection_v(
             self,
@@ -313,7 +316,10 @@ class BallConstraint(ConstrainedSet):
         return ts
 
     def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
-        return self.eval_intersection_v(o, v, tol, thresh)[0].item()
+        if o.dim() == 1: o = o.view(1, -1)
+        if v.dim() == 1: v = v.view(1, -1)
+        fs = self.eval_intersection_v(o, v, tol, thresh)
+        return fs.item() if fs.dim() == 0 else fs[0].item()
 
 
 class QuadraticConstraint(ConstrainedSet):
@@ -343,7 +349,10 @@ class QuadraticConstraint(ConstrainedSet):
         return xQx + px <= self.nb
 
     def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
-        return self.eval_intersection_v(o.view(1, -1), v.view(1, -1), tol, thresh)[0].item()
+        if o.dim() == 1: o = o.view(1, -1)
+        if v.dim() == 1: v = v.view(1, -1)
+        fs = self.eval_intersection_v(o, v, tol, thresh)
+        return fs.item() if fs.dim() == 0 else fs[0].item()
 
     def eval_intersection_v(
             self,

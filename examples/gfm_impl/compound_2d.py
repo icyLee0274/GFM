@@ -145,9 +145,9 @@ class Compound2D(examples.GfmExampleBase):
                 # This is done by evaluating the intersection of the constraints.
                 # For violated constraints, the intersection will be less than 1,
                 # and the closer to 0, the earlier the constraint is violated.
-                il = linear.eval_intersection(os[i].flatten(), vs[i].flatten())
-                ib = ball.eval_intersection(os[i].flatten(), vs[i].flatten())
-                ie = ellipsoid.eval_intersection(os[i].flatten(), vs[i].flatten())
+                il = linear.eval_intersection(os[i], vs[i])
+                ib = ball.eval_intersection(os[i], vs[i])
+                ie = ellipsoid.eval_intersection(os[i], vs[i])
                 if il <= ib and il <= ie:
                     xs[i] = lr(os[i].view(1, -1), vs[i].view(1, -1))
                 elif ib <= il and ib <= ie:
