@@ -134,23 +134,26 @@ class Compound2D(examples.GfmExampleBase):
         Q = R.matmul(D).matmul(R.t())
         p = -2 * c.matmul(Q)
         d = c.matmul(Q).matmul(c) - 1
-        # ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
+        ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
         er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d.expand(1))
 
         def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
             xs = os + vs
             fs = self.get_domain().check_feasibility_v(xs, vs.device)
             for i in torch.nonzero(fs):
-                x0 = xs[i]
-                l = linear.check_feasibility(x0)
-                b = ball.check_feasibility(x0)
-                if not l:
+                # We need to determine which condition is first violated.
+                # This is done by evaluating the intersection of the constraints.
+                # For violated constraints, the intersection will be less than 1,
+                # and the closer to 0, the earlier the constraint is violated.
+                il = linear.eval_intersection(os[i].view(1, -1), vs[i].view(1, -1))
+                ib = ball.eval_intersection(os[i].view(1, -1), vs[i].view(1, -1))
+                ie = ellipsoid.eval_intersection(os[i].view(1, -1), vs[i].view(1, -1))
+                if il <= ib and il <= ie:
                     xs[i] = lr(os[i].view(1, -1), vs[i].view(1, -1))
-                elif not b:
+                elif ib <= il and ib <= ie:
                     xs[i] = br(os[i].view(1, -1), vs[i].view(1, -1))
                 else:
                     xs[i] = er(os[i].view(1, -1), vs[i].view(1, -1))
-
             return xs
 
         return reflect_fn
