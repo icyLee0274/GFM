@@ -1,16 +1,16 @@
 import logging
-from itertools import product
-from math import sqrt
 import os
+from math import sqrt
 
-from omegaconf import DictConfig
-import torch, numpy as np
-from torch import Tensor, tensor
-from torch.distributions import MultivariateNormal
 import cvxpy as cp
+import numpy as np
+import torch
+from omegaconf import DictConfig
+from torch import Tensor
+from torch.distributions import MultivariateNormal
 
-import gfm
 import examples
+import gfm
 from gfm import ConstrainedSet
 
 logger = logging.getLogger(__name__)
@@ -115,15 +115,11 @@ class Compound2D(examples.GfmExampleBase):
         ]).to(device=device, dtype=torch.float32)
         b = Tensor([2, 1.5, 0, 0]).to(device)
         linear = gfm.LinearConstraint(A, b)  # A x <= b
-        lr = gfm.PolytopeReflector(A.T, b)
+        rfl = gfm.PolytopeReflector(A.T, b)
 
         # | x + (.3, .2) | <= 2.5
         ball = gfm.BallConstraint(Tensor([-.3, -.2]).to(device), 2.5)
-        br = gfm.QcReflector(
-            torch.eye(2, device=device).expand(1, -1, -1),
-            torch.tensor([[.6, .4]], device=device),
-            torch.tensor([6.12], device=device),
-        )
+        rfb = gfm.BallReflector(Tensor([-.3, -.2]).to(device), 2.5)
 
         a1 = 2.5
         a2 = 1
@@ -135,25 +131,55 @@ class Compound2D(examples.GfmExampleBase):
         p = -2 * c.matmul(Q)
         d = c.matmul(Q).matmul(c) - 1
         ellipsoid = gfm.QuadraticConstraint(Q, p, d.item())
-        er = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d.expand(1))
+        rfe = gfm.QcReflector(Q.expand(1, -1, -1), p.expand(1, -1), d.expand(1))
 
-        def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
+        def reflect_fn(os: Tensor, vs: Tensor, cnt=0) -> Tensor:
+            # We need to determine which condition is first violated.
+            # This is done by evaluating the intersection of the constraints.
+            # For violated constraints, the intersection will be less than 1,
+            # and the closer to 0, the earlier the constraint is violated.
             xs = os + vs
-            fs = self.get_domain().check_feasibility_v(xs, vs.device)
-            for i in torch.nonzero(fs):
-                # We need to determine which condition is first violated.
-                # This is done by evaluating the intersection of the constraints.
-                # For violated constraints, the intersection will be less than 1,
-                # and the closer to 0, the earlier the constraint is violated.
-                il = linear.eval_intersection(os[i], vs[i])
-                ib = ball.eval_intersection(os[i], vs[i])
-                ie = ellipsoid.eval_intersection(os[i], vs[i])
-                if il <= ib and il <= ie:
-                    xs[i] = lr(os[i].view(1, -1), vs[i].view(1, -1))
-                elif ib <= il and ib <= ie:
-                    xs[i] = br(os[i].view(1, -1), vs[i].view(1, -1))
-                else:
-                    xs[i] = er(os[i].view(1, -1), vs[i].view(1, -1))
+
+            il = linear.eval_intersection_v(os, vs, device=vs.device)
+            ib = ball.eval_intersection_v(os, vs, device=vs.device)
+            ie = ellipsoid.eval_intersection_v(os, vs, device=vs.device)
+
+            rl = (il > 0) & (il < 1) & (il <= ib) & (il <= ie)  # linear constraint is violated first
+            rb = (ib > 0) & (ib < 1) & (ib < il) & (ib <= ie)  # ball constraint is violated first
+            re = (ie > 0) & (ie < 1) & (ie < il) & (ie < ib)  # ellipsoid constraint is violated first
+
+            nl = rl.any().item()
+            nb = rb.any().item()
+            ne = re.any().item()
+
+            # logger.info(f"Reflection #{cnt}")
+
+            if nl:
+                xs[rl] = rfl(os[rl], vs[rl])  # reflection at linear constraints
+                # logger.info("Reflection at linear constraints.")
+            if nb:
+                xs[rb] = rfb(os[rb], vs[rb])  # reflection at ball constraints
+                # logger.info("Reflection at ball constraints.")
+            if ne:
+                xs[re] = rfe(os[re], vs[re])  # reflection at ellipsoid constraints
+                # logger.info("Reflection at ellipsoid constraints.")
+
+            # some may still violate the constraints after reflection, we do another reflection
+            if nl or nb or ne:
+                # logger.info(f"Re-reflecting... #{cnt}")
+                os[rl] += il[rl].view(-1, 1) * vs[rl]
+                os[rb] += ib[rb].view(-1, 1) * vs[rb]
+                os[re] += ie[re].view(-1, 1) * vs[re]
+                vs[rl] = xs[rl] - os[rl]
+                vs[rb] = xs[rb] - os[rb]
+                vs[re] = xs[re] - os[re]
+                xs = reflect_fn(os, vs, cnt + 1)
+
+            nv = xs.shape[0] - (linear.check_feasibility_v(xs)
+                                & ball.check_feasibility_v(xs)
+                                & ellipsoid.check_feasibility_v(xs)).sum()
+            # if nv > 0: logger.warning(f"{nv} rays violated constraints after reflection.")
+
             return xs
 
         return reflect_fn

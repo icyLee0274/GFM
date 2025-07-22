@@ -2,21 +2,40 @@ import torch, numpy
 from torch import Tensor
 from typing import Tuple
 
-__all__ = ["ball_reflect", "cube_reflect", "PolytopeReflector", "QcReflector"]
+__all__ = ["ball_reflect", "cube_reflect", "PolytopeReflector", "QcReflector", "BallReflector"]
 
 
-def _solve_intersection(b: Tensor, v: Tensor) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+def _solve_intersection(b: Tensor, v: Tensor, r: float = 1.0) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    """
+    Solve the intersection of a line with a ball, namely:
+        .. math:: \| b + t v \|_2 = r.
+
+    The intersections are computed by solving quadratic equation:
+        .. math:: v^Tv t^2 + 2 b^Tv t + b^Tb - r^2 = 0.
+
+    :param b: Starting points, Tensor of shape (n, d).
+    :param v: Directions, Tensor of shape (n, d).
+    :param r: Radius of ball.
+    :return: A tuple of four Tensors:
+        - bb: b^Tb, shape (n, 1)
+        - bv: b^Tv, shape (n, 1)
+        - vv: v^Tv, shape (n, 1)
+        - t: The intersection points, shape (n, 1).
+    """
     bb = torch.einsum("ik,ik->i", b, b)  # b^Tb, shape n*1
     bv = torch.einsum("ik,ik->i", b, v)  # b^Tv, shape n*1
     vv = torch.einsum("ik,ik->i", v, v)  # v^Tv, shape n*1
 
-    # Solve intersection  || b + t v || = 1
-    t = (-bv + torch.sqrt(bv * bv + vv - vv * bb)) / vv
+    t = torch.zeros_like(vv)
+    ii = torch.isclose(vv, t).logical_not()
+
+    # Solve intersection || b + t v || = r
+    t[ii] = (torch.sqrt(bv[ii] * bv[ii] + vv[ii] * r * r - vv[ii] * bb[ii]) - bv[ii]) / vv[ii]
     t = torch.nan_to_num(t)
     t = torch.minimum(t, torch.ones_like(t))
-    t = t.view(-1, 1)
+    # t = t.view(-1, 1)
 
-    return bb, bv, vv, t
+    return bb.view(-1, 1), bv.view(-1, 1), vv.view(-1, 1), t.view(-1, 1)
 
 
 def ball_reflect(b: Tensor, v: Tensor) -> Tensor:
@@ -73,6 +92,44 @@ class PolytopeReflector:
         rs = vs - 2 * (nv / nn) * ns  ## reflected direction
 
         return xs + (1 - ts.view(-1, 1)) * rs
+
+
+class BallReflector:
+
+    def __init__(self, loc: Tensor, scale: float = 1.0):
+        """
+        Reflector for ball with center 'loc' and radius 'scale'.
+
+        :param loc: Center of the ball, shape (d,).
+        :param scale: Radius of the ball.
+        """
+        self.loc = loc.view(1, -1)
+        self.scale = scale
+
+    def __call__(self, os: Tensor, vs: Tensor) -> Tensor:
+        """
+        Reflector function for a ball.
+
+        :param os: Start points, shape (n, d).
+        :param vs: Step vectors, shape (n, d).
+        :return: Reflected end points, shape (n, d).
+        """
+        loc = self.loc.to(os.device)
+        bs = os - loc
+        xs = bs + vs
+
+        bb, bv, vv, t = _solve_intersection(bs, vs, self.scale)
+
+        n = bs + t * vs  # normal vector
+        # If reflection is required, w is the remaining step after intersection point,
+        # project w onto normal vector by proj_n(v)=v^Tnn/n^Tn
+        # substituting n with b+tv, we have w=(b^Tb+b^Tv+t(1-t)v^Tv)/r^2*n
+        w = (1 - t) * (bv + t * vv) * n / self.scale / self.scale
+        xs -= 2 * w
+
+        xs += loc
+
+        return xs
 
 
 class QcReflector:
