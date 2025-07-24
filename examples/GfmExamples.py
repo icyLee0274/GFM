@@ -22,7 +22,7 @@ from gfm import (
     odeint_reflect,
     cube_reflect, ball_reflect,
     cube_project, ball_project,
-    MlpVelocityField, ResNet,
+    Mlp, ResNet,
     HyperBallUniform, box_uniform,
     maximum_mean_discrepancy, ConstrainedSet,
     TruncatedDistribution,
@@ -39,7 +39,9 @@ class GfmExampleBase(lightning.LightningModule):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         self.cfg = cfg
-        self.velocity = MlpVelocityField(
+        # TODO: load velocity field dynamics
+        self.velocity = Mlp(
+            cfg.example.dimension + 1,
             cfg.example.dimension,
             cfg.velocity.width,
             cfg.velocity.depth,
