@@ -1,3 +1,5 @@
 implementation: "ResNet"
-width: 256
-layers: 3
+# n_in and n_out are essential for velocity fields, but they are set as example.dimension+1 and example.dimension by default.
+# Some methods may need to override these values. This could be done by setting method.override_n_in and method.override_n_out.
+n_hidden: 256
+n_layers: 3

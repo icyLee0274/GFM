@@ -1,18 +1,15 @@
-import os
 import logging
+import os
 from time import time
 
+import geoopt
+import lightning
 import torch
-from PIL.ImageOps import scale
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig, OmegaConf
 from torch import nn, tensor, Tensor
-import lightning
-from torch.utils.data import DataLoader, TensorDataset
 from torch.distributions import MultivariateNormal
-import geoopt
-
-import ite
+from torch.utils.data import DataLoader, TensorDataset
 
 import gfm
 from gfm import (
@@ -22,7 +19,6 @@ from gfm import (
     odeint_reflect,
     cube_reflect, ball_reflect,
     cube_project, ball_project,
-    Mlp, ResNet,
     HyperBallUniform, box_uniform,
     maximum_mean_discrepancy, ConstrainedSet,
     TruncatedDistribution,
@@ -40,19 +36,27 @@ class GfmExampleBase(lightning.LightningModule):
         super().__init__()
         self.cfg = cfg
         # TODO: load velocity field dynamics
-        self.velocity = Mlp(
-            cfg.example.dimension + 1,
-            cfg.example.dimension,
-            cfg.velocity.width,
-            cfg.velocity.depth,
-            cfg.velocity.activation
-        ) if cfg.velocity.get("implementation", "MlpVelocityField") == "MlpVelocityField" else (
-            ResNet(
-                cfg.example.dimension + 1,
-                cfg.example.dimension,
-                cfg.velocity.width,
-                cfg.velocity.layers,
-            ))
+        vf_impl = getattr(gfm, self.cfg.velocity.implementation)
+        vf_args = OmegaConf.to_container(self.cfg.velocity, resolve=True)
+        vf_args.pop("implementation")
+        if vf_args.get("n_in", None) is None: vf_args["n_in"] = self.cfg.example.dimension + 1
+        if vf_args.get("n_out", None) is None: vf_args["n_out"] = self.cfg.example.dimension
+        if self.cfg.method.get("override_n_in", None) is not None: vf_args["n_in"] = self.cfg.method.override_n_in
+        if self.cfg.method.get("override_n_out", None) is not None: vf_args["n_out"] = self.cfg.method.override_n_out
+        self.velocity = vf_impl(**vf_args)
+        # self.velocity = Mlp(
+        #     cfg.example.dimension + 1,
+        #     cfg.example.dimension,
+        #     cfg.velocity.width,
+        #     cfg.velocity.depth,
+        #     cfg.velocity.activation
+        # ) if cfg.velocity.get("implementation", "MlpVelocityField") == "MlpVelocityField" else (
+        #     ResNet(
+        #         cfg.example.dimension + 1,
+        #         cfg.example.dimension,
+        #         cfg.velocity.width,
+        #         cfg.velocity.layers,
+        #     ))
         self.save_hyperparameters()
 
         #### The following buffers are for DDPM only ####

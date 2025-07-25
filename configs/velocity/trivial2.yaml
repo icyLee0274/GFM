@@ -1,4 +1,6 @@
-implementation: "MlpVelocityField"
+implementation: "Mlp"
+# n_in and n_out are essential for velocity fields, but they are set as example.dimension+1 and example.dimension by default.
+# Some methods may need to override these values. This could be done by setting method.override_n_in and method.override_n_out.
 width: 64
 depth: 2
 activation: ELU
