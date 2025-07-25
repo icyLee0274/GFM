@@ -82,7 +82,8 @@ def main(cfg: DictConfig):
 
 
 def solve_ip(a, x, constraints):
-    objective = cp.Minimize(a)
+    # objective = cp.Minimize(a)
+    objective = cp.Minimize(0)
     problem = cp.Problem(objective, constraints)
     start = time.time()
     problem.solve()
@@ -111,9 +112,11 @@ def test_linear(cfg: DictConfig, collector: Collector):
             # Solving interior point
             a = cp.Variable()
             x = cp.Variable(d)
-            constraints = [G @ x - h <= a, x>=-cfg.box, x<=cfg.box]
-            ip_time, ip = solve_ip(a, x, constraints)
-
+            # constraints = [G @ x - h <= a, x>=-cfg.box, x<=cfg.box]
+            # constraints = [G @ x - h <= 0, x>=-cfg.box, x<=cfg.box]
+            # ip_time, ip = solve_ip(a, x, constraints)
+            ip = np.random.randn(d)
+            ip_time = 0 
             # Evaluating gauge mapping
             domain = gfm.LinearConstraint(torch.from_numpy(G).to(torch.float32), torch.from_numpy(h).to(torch.float32))
             for bs in cfg.batch_size:
@@ -131,9 +134,12 @@ def test_qc(cfg: DictConfig, collector: Collector):
             # Solving interior point
             a = cp.Variable()
             x = cp.Variable(d)
-            constraints = [cp.QuadForm(x, cp.psd_wrap(Q[i])) + p[i].T @ x - b[i] <= a for i in range(Q.shape[0])]
-            constraints.extend([x>=-cfg.box, x<=cfg.box])
-            ip_time, ip = solve_ip(a, x, constraints)
+            # constraints = [cp.QuadForm(x, cp.psd_wrap(Q[i])) + p[i].T @ x - b[i] <= a for i in range(Q.shape[0])]
+            # constraints = [cp.QuadForm(x, cp.psd_wrap(Q[i])) + p[i].T @ x - b[i] <= 0 for i in range(Q.shape[0])]
+            # constraints.extend([x>=-cfg.box, x<=cfg.box])
+            # ip_time, ip = solve_ip(a, x, constraints)
+            ip = np.random.randn(d)
+            ip_time = 0 
 
             # Evaluating gauge mapping
             Q = torch.from_numpy(Q).to(torch.float32)
@@ -156,10 +162,12 @@ def test_soc(cfg: DictConfig, collector: Collector):
             # Solving interior point
             a = cp.Variable()
             x = cp.Variable(d)
-            constraints = [cp.norm(A[i] @ x + b[i], 2) - c[i].T @ x - s[i] <= a for i in range(A.shape[0])]
-            constraints.extend([x>=-cfg.box, x<=cfg.box])
-            ip_time, ip = solve_ip(a, x, constraints)
-
+            # constraints = [cp.norm(A[i] @ x + b[i], 2) - c[i].T @ x - s[i] <= a for i in range(A.shape[0])]
+            # constraints = [cp.norm(A[i] @ x + b[i], 2) - c[i].T @ x - s[i] <= 0 for i in range(A.shape[0])]
+            # constraints.extend([x>=-cfg.box, x<=cfg.box])
+            # ip_time, ip = solve_ip(a, x, constraints)
+            ip = np.random.randn(d)
+            ip_time = 0 
             # Evaluating gauge mapping
             A = torch.from_numpy(A).to(torch.float32)
             b = torch.from_numpy(b).to(torch.float32)
@@ -192,13 +200,15 @@ def test_lmi(cfg: DictConfig, collector: Collector):
             # Solving interior point
             a = cp.Variable()
             x = cp.Variable(d)
-            constraints = [
-                Fss[k, 0] + sum(x[i] * Fss[k, i + 1] for i in range(d)) << 0
-                for k in range(n_cons)
-            ]
-            constraints.extend([x>=-cfg.box, x<=cfg.box])
-            ip_time, ip = solve_ip(a, x, constraints)
-            if ip is None: ip = np.zeros(d)
+            # constraints = [
+            #     Fss[k, 0] + sum(x[i] * Fss[k, i + 1] for i in range(d)) << 0
+            #     for k in range(n_cons)
+            # ]
+            # constraints.extend([x>=-cfg.box, x<=cfg.box])
+            # ip_time, ip = solve_ip(a, x, constraints)
+            # if ip is None: ip = np.zeros(d)
+            ip = np.random.randn(d)
+            ip_time = 0 
 
             logger.info(f"Interior time {ip_time}.")
 
