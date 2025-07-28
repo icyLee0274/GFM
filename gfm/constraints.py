@@ -1,6 +1,8 @@
 from typing import Callable, Literal
+import itertools
 
 import geoopt
+import numpy as np
 import torch
 from torch import tensor, Tensor
 
@@ -544,3 +546,174 @@ def _dir_gt(lhs, rhs):
 
 def _dir_ge(lhs, rhs):
     return lhs >= rhs
+
+
+class PolynomialConstraints(ConstrainedSet):
+    """
+    A class to represent polynomial constraints of the form:
+
+        p(x) <= 0
+
+    where p is a polynomial function of x.
+    """
+
+    def __init__(self, polynomials: list[Callable[[np.ndarray], np.ndarray]], rhs: np.ndarray = None):
+        """
+        Initialize the polynomial constraint.
+
+        These polynomial constraints are given as
+
+        .. math::
+
+            p_i(x) \le c_i, i = 1, \ldots, n,
+
+        where :math:`p_i` is a multivariate polynomial function of :math:`x`.
+
+        :param polynomials: Polynomial callable functions on the left-han-side.
+        :param rhs: Constant values on the right-hand-side, defaults to all 0.
+        """
+        super().__init__()
+        self.polys = polynomials
+        self.rhs = rhs.flatten() if rhs is not None else np.zeros(len(polynomials))
+
+    def check_feasibility(self, point: Tensor) -> bool:
+        return self.check_feasibility_v(point.view(1, -1))[0].item()
+
+    def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
+        points = points.detach().cpu().numpy()
+        px = np.stack([fp(points) for fp in self.polys], axis=-1)
+        fs = np.all(px <= self.rhs, axis=-1)
+        return torch.from_numpy(fs).to(points.device)
+
+    def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
+        return super().eval_intersection(o, v, tol, thresh)
+
+    def eval_intersection_v(self, os: Tensor, vs: Tensor, tol: float = 1e-6, thresh: float = 1e8,
+                            device=torch.get_default_device()) -> Tensor:
+        return super().eval_intersection_v(os, vs, tol, thresh, device)
+
+
+class SosPolynomialConstraints(ConstrainedSet):
+    """
+    A class to represent sum-of-squares polynomial constraints of the form:
+
+    .. math::
+
+        p_i(x) = z(x)^T Q_i z(x) \le c_i,
+
+    where :math:`z(x)` is a vector of all monomials in terms of :math:`x`
+    and :math:`Q` is a positive semidefinite matrix.
+    """
+
+    def __init__(self, Qs: Tensor, dim: int, rhs: Tensor | None = None):
+        """
+        A class to represent sum-of-squares polynomial constraints of the form:
+
+        .. math::
+
+            p_i(x) = z(x)^T Q_i z(x) \le c_i,
+
+        where :math:`z(x)` is a vector of all monomials in terms of :math:`x`
+        and :math:`Q_i` is a positive semidefinite matrix.
+        The maximum degree of the monomials is given by ``dim``.
+
+        :param Qs: Tensor of positive semidefinite matrices of size (K, m, m).
+        :param rhs: Constant values on the right-hand-side, defaults to all 0.
+        """
+        super().__init__()
+        self.Qs = Qs.unsqueeze(0) if Qs.dim() == 2 else Qs
+        self.rhs: Tensor = rhs.flatten() if rhs is not None else np.zeros(Qs.shape[0])
+        self.dim = dim
+        assert self.Qs.dim == 3
+
+    def compute_monomials(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Computes all monomial values.
+
+        :param x: Tensor of monomial values to be computed.
+        :return: A 2D tensor containing the monomial values.
+        """
+        n, m = x.shape
+
+        # Handle the d=0 case (constant term)
+        monomials = [torch.ones(n, 1, device=x.device)]
+
+        if self.dim > 0:
+            # Degree-1 monomials (the variables themselves)
+            monomials.append(x)
+
+        # Generate monomials of degree 2 up to d
+        for degree in range(2, self.dim + 1):
+            # Get all combinations of variable indices with replacement
+            indices_combinations = itertools.combinations_with_replacement(range(m), degree)
+
+            # Compute the product for each monomial combination
+            for indices in indices_combinations:
+                monomial = torch.prod(x[:, list(indices)], dim=1, keepdim=True)
+                monomials.append(monomial)
+
+        return torch.cat(monomials, dim=1)
+
+    def check_feasibility(self, point: Tensor) -> bool:
+        return self.check_feasibility_v(point.view(1, -1))[0].item()
+
+    def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
+        zx = self.compute_monomials(points)  # shape (n, m)
+        # batched quadratic form: z(x)^T Q_i z(x) for i = 0, ..., K-1
+        # Qs shape (K, m, m), the resulting shape of z(x)^T Q z(x) is (n, K)
+        px = torch.einsum("ni, kij, nj -> nk", zx, self.Qs.to(points.device), zx)
+        fs = torch.all(px <= self.rhs.to(points.device), dim=1)
+        return fs
+
+    def eval_intersection(self, o: Tensor, v: Tensor, tol: float = 1e-6, thresh: float = 1e8) -> float:
+        return super().eval_intersection(o, v, tol, thresh)
+
+    def eval_intersection_v(self, os: Tensor, vs: Tensor, tol: float = 1e-6, thresh: float = 1e8,
+                            device=torch.get_default_device()) -> Tensor:
+        ul = torch.ones(3, vs.shape[0], device=device)
+        ul[0] = thresh
+        ul[1] = tol
+        ul[2] = (thresh + tol) / 2.0
+
+        while torch.any(ul[0] - ul[1] > tol):
+            ii = self.check_feasibility_v(os + ul[2].view(-1, 1) * vs, device)
+            ul[0][ii] = ul[2][ii]
+            ul[1][~ii] = ul[2][~ii]
+
+        fsu = self.check_feasibility_v(os + thresh * vs, device)
+        fsl = self.check_feasibility_v(os + tol * vs, device)
+
+        ul[2, fsu] = torch.inf
+        ul[2, ~fsl] = 0.0
+
+        return ul[2].detach()
+
+
+def get_monomial_exponents(m: int, d: int):
+    """
+    Generate all exponent combinations of m variables with degree <= d
+    """
+    return [p for p in itertools.product(range(d + 1), repeat=m) if sum(p) <= d]
+
+
+def compute_all_monomials(x: torch.Tensor, d: int) -> torch.Tensor:
+    """
+    Compute all monomials up to degree d from input tensor.
+
+    Args:
+        x (Tensor): Input tensor of shape (n, m)
+        d (int): Maximum degree
+
+    Returns:
+        Tensor of shape (n, num_monomials)
+    """
+    n, m = x.shape
+    exponents = get_monomial_exponents(m, d)
+    exponents_tensor = torch.tensor(exponents, dtype=x.dtype, device=x.device)  # shape: (num_monomials, m)
+
+    # Log-space trick to avoid large powers: log(x^a) = a * log(x)
+    log_x = torch.log(x + 1e-10)  # Avoid log(0)
+    monomials_log = torch.matmul(log_x, exponents_tensor.T)  # shape: (n, num_monomials)
+    monomials = torch.exp(monomials_log)
+
+    return monomials

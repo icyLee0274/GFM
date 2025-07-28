@@ -72,7 +72,7 @@ def generate_monomials(variables, degree, constant: bool = False):
     return sorted(list(set(monomials)), key=str)
 
 
-def generates_sos_polynomial(n_var, half_degree):
+def generates_sos_polynomial(n_var, half_degree) -> sp.Poly:
     """
     Generates a sum-of-squares polynomial of given degree in n_var variables.
 
@@ -101,7 +101,7 @@ def generates_sos_polynomial(n_var, half_degree):
     n_mono = len(monos)
     poly = sum(float(Q[i, j]) * monos[i] * monos[j] for i, j in itertools.product(range(n_mono), repeat=2))
 
-    return poly
+    return sp.poly(poly)
 
 
 def generate_opt(
