@@ -3,16 +3,105 @@ from typing import Any
 import numpy as np
 import pickle
 import cvxpy as cp
+import sympy as sp
 import pyomo.environ as pyo
 import multiprocessing as mp
 import scipy.io
 import os
+import itertools
 import networkx as nx
 from numpy import ndarray, dtype, floating
-from numpy._typing import _64Bit
-from torch import Tensor
+from sympy.polys import monomials
 
 n_process = 50
+
+
+def generate_positive_definite_matrix(
+        d: int,
+        low: float = 1e-6,
+        high: float = 1.0,
+        seed: int = None
+) -> ndarray:
+    """
+    Generates a random positive definite matrix of size d x d.
+
+    The matrix is generated as
+
+    .. math::
+
+        M = Q D Q^T,
+
+    where :math:`Q` is a random orthogonal matrix and :math:`D` is a diagonal matrix with positive eigenvalues sampled uniformly.
+
+    :param d: Dimension of generated matrix.
+    :param low: Lower bound for eigenvalues, must be positive (non-negative).
+    :param high: Upper bound for eigenvalues.
+    :param seed: RNG seed.
+    :return: A numpy array of shape (d, d) representing a positive definite matrix.
+    """
+    rng = np.random.default_rng(seed)
+
+    ev = rng.uniform(low=low, high=high, size=d)
+    D = np.diag(ev)
+
+    Z = rng.normal(size=(d, d))
+    Q, _ = np.linalg.qr(Z)
+
+    M = Q @ D @ Q.T
+
+    return M
+
+
+def generate_monomials(variables, degree, constant: bool = False):
+    """
+    Generates a list of all monomials for a given set of variables and degree.
+
+    :param variables: A list of :code:`sympy.Symbol`, e.g., [x1, x2].
+    :param degree: Maximum degree of the monomials to generate.
+    :param constant: If ``True``, include the constant term ``1`` in the list of monomials.
+
+    :return: List of sympy expressions: A sorted list of monomials.
+    """
+    monomials = [sp.Integer(1)] if constant else []
+    for d in range(1, degree + 1):
+        # Generate all combinations of variables with repetition
+        for p in itertools.combinations_with_replacement(variables, d):
+            monomials.append(np.prod(p))
+
+    # Remove duplicates and sort
+    return sorted(list(set(monomials)), key=str)
+
+
+def generates_sos_polynomial(n_var, half_degree):
+    """
+    Generates a sum-of-squares polynomial of given degree in n_var variables.
+
+    The polynomial is generated as a sum of squares of monomials:
+
+    .. math::
+
+        p(x) = z(x)^T Q z(x),
+
+    where :math:`z(x)` is a vector of monomials of degree :math:`d` and :math:`Q` is a positive definite matrix.
+
+    :param n_var: Number of variables.
+    :param half_degree: Half of degree of the polynomial.
+    :return: A sympy expression representing the SOS polynomial.
+    """
+
+    # Generate symbolic variables, [x_1, ..., x_n]
+    variables = sp.symbols(f'x1:{n_var + 1}')
+
+    # Generate monomials
+    monos = generate_monomials(variables, half_degree, constant=False)
+
+    # Create a random polynomial with coefficients
+    Q = generate_positive_definite_matrix(len(monos))
+
+    n_mono = len(monos)
+    poly = sum(float(Q[i, j]) * monos[i] * monos[j] for i, j in itertools.product(range(n_mono), repeat=2))
+
+    return poly
 
 
 def generate_opt(
