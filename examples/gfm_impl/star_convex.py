@@ -1,4 +1,5 @@
 import logging
+import math
 from pickle import FALSE
 
 from omegaconf import DictConfig
@@ -116,3 +117,51 @@ class Star(examples.GfmExampleBase):
             return xs
 
         return reflect_fn
+
+    def _project_rf(self):
+        alpha = float(self.cfg.example.alpha)
+        n_tips = float(self.cfg.example.n_tips)
+
+        solver = pyo.SolverFactory('ipopt')
+        if not solver.available(): raise RuntimeError("Ipopt not available.")
+
+        def solve_projection(xy0: Tensor) -> Tensor:
+            x0 = xy0[0].item()
+            y0 = xy0[1].item()
+            r0 = math.sqrt(x0 * x0 + y0 * y0)
+
+            model = pyo.ConcreteModel(name="Star Convex Projection")
+
+            model.x = pyo.Var(initialize=(0.99 - alpha) * x0 / r0)
+            model.y = pyo.Var(initialize=(0.99 - alpha) * y0 / r0)
+
+            model.obj = pyo.Objective(rule=lambda m: (m.x - x0) ** 2 + (m.y - y0) ** 2, sense=pyo.minimize)
+            model.constraint = pyo.Constraint(rule=lambda m: (
+                    pyo.sqrt(m.x ** 2 + m.y ** 2) <= 1.0 +
+                    alpha * pyo.sin(2.0 * n_tips *
+                                    pyo.atan(m.y / (m.x + pyo.sqrt(m.x ** 2 + m.y ** 2))))
+            ))
+
+            res = solver.solve(model)
+            if res.solver.status == pyo.SolverStatus.ok:
+                if res.solver.termination_condition == pyo.TerminationCondition.optimal or \
+                        res.solver.termination_condition == pyo.TerminationCondition.feasible:
+                    logger.info("Projection successful.")
+                else:
+                    logger.warning("Solver did not find an optimal solution, using original point.")
+                opt_x = pyo.value(model.x)
+                opt_y = pyo.value(model.y)
+            else:
+                logger.error("Solver failed to solve the problem, using original point.")
+                opt_x = x0
+                opt_y = y0
+            return torch.tensor([opt_x, opt_y], device=xy0.device, dtype=xy0.dtype)
+
+        def project_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = os + vs
+            fs = self.get_domain().check_feasibility_v(xs)
+            for i in torch.argwhere(~fs):
+                xs[i] = solve_projection(xs[i].flatten())
+            return xs
+
+        return project_fn
