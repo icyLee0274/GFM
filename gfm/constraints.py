@@ -215,6 +215,8 @@ class LinearConstraint(ConstrainedSet):
         """
         Linear constrained set defined by
 
+        .. math::
+
             A * x <= b
 
         :param A: A matrix of size K * d.
@@ -418,6 +420,9 @@ class SemiDefiniteConstraint(ConstrainedSet):
     def __init__(self, Fs: Tensor):
         """
         Semi-definite constraint defined as
+
+        .. math::
+
             F_0 + x_1 F_1 + \cdots + x_d F_d \succeq 0.
             X>0, [a,b]
         :param Fs: (d+1)*d*d Tensor, each Fs[i] should be symmetric.

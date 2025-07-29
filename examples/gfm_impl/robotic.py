@@ -56,7 +56,8 @@ class Robotic(examples.GfmExampleBase):
                     [0., -1., 0., 0., 0.],
                 ],
                     dtype=torch.float32, device=self.device),
-                tensor([5.99, 10., 10., 10., 10.], dtype=torch.float32, device=self.device),
+                # tensor([5.99, 10., 10., 10., 10.], dtype=torch.float32, device=self.device),
+                tensor([5.11, 7.71, 9.10, 6.82, 8.76], dtype=torch.float32, device=self.device),
             )
         )
         ip = torch.tensor([0., 0., 2., .3, 1.5], dtype=torch.float32, device=self.device)
