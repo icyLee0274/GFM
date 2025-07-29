@@ -122,7 +122,7 @@ class BallReflector:
 
         n = bs + t * vs  # normal vector
         # If reflection is required, w is the remaining step after intersection point,
-        # project w onto normal vector by proj_n(v)=v^Tnn/n^Tn
+        # project v onto normal vector by w=proj_n(v)=v^Tnn/n^Tn
         # substituting n with b+tv, we have w=(b^Tb+b^Tv+t(1-t)v^Tv)/r^2*n
         w = (1 - t) * (bv + t * vv) * n / self.scale / self.scale
         xs -= 2 * w

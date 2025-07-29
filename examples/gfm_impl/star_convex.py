@@ -1,15 +1,31 @@
+import logging
+from pickle import FALSE
+
 from omegaconf import DictConfig
 import torch, numpy as np
 from torch import Tensor
+import pyomo.environ as pyo
 
 import gfm
 import examples
 from gfm import ConstrainedSet
 
+logger = logging.getLogger(__name__)
+
 
 class StarDomain(gfm.ConstrainedSet):
 
     def __init__(self, alpha: float, n_tips: int):
+        """
+        A star-shaped domain defined by the equation:
+
+        .. math::
+
+            |x| \leq 1 + \\alpha * \sin(n_{tips} \cdot \\arctan2(y, x))
+
+        :param alpha: Scaling factor, the smaller, the flatter the tips.
+        :param n_tips: Number of tips of the star.
+        """
         super().__init__()
         self.alpha = alpha
         self.n_tips = n_tips
@@ -63,3 +79,40 @@ class Star(examples.GfmExampleBase):
         data = data_dist.sample(torch.Size([n]))
 
         return data
+
+    def _reflect_rf(self):
+        alpha = float(self.cfg.example.alpha)
+        n_tips = float(self.cfg.example.n_tips)
+        star_fn = lambda x, y: \
+            torch.sqrt(x * x + y * y) - alpha * torch.sin(n_tips * torch.atan2(y, x))
+
+        @torch.enable_grad()
+        @torch.inference_mode(False)
+        def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = os + vs
+            fs = self.get_domain().check_feasibility_v(xs)
+            ifs = fs.logical_not()
+            if torch.any(ifs):
+                # If not all points are feasible, reflect them
+                ts = self.get_domain().eval_intersection_v(
+                    os[ifs], vs[ifs],
+                    tol=1e-5, thresh=1e6,
+                    device=vs.device
+                )
+                ns = torch.zeros(ts.shape[0], 2, device=vs.device)
+                for i, j in zip(torch.argwhere(ifs), range(ts.shape[0])):
+                    xy = os[i] + ts[j] * vs[i]
+                    x = torch.tensor(xy[0, 0].item(), device="cpu", requires_grad=True)
+                    y = torch.tensor(xy[0, 1].item(), device="cpu", requires_grad=True)
+                    # z = star_fn(x, y)
+                    z = torch.sqrt(x * x + y * y) - alpha * torch.sin(n_tips * torch.atan2(y, x))
+                    z.backward()
+                    ns[j, 0] = x.grad.item()
+                    ns[j, 1] = y.grad.item()
+                ns = ns / torch.linalg.vector_norm(ns, dim=-1, keepdim=True)
+                # projection onto the normal vector is given by w=v^Tnn/n^Tn, where n^Tn=1 here.
+                ws = torch.sum(vs[ifs] * ns, dim=-1, keepdim=True) * ns
+                xs[ifs] -= 2 * ws
+            return xs
+
+        return reflect_fn
