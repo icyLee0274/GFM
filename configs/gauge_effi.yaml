@@ -4,7 +4,7 @@ hydra:
   job:
     chdir: true
 
-target: linear
+target: [ poly ]
 repeat: 1
 
 linear:
@@ -40,3 +40,15 @@ lmi:
   seed: 114
   test_size: 10
   batch_size: [ 10, 100, 1000, 10000, 100000 ]
+
+poly:
+  dims: [ 2, 4, 8 ]
+  degrees: [ 1, 2, 4 ]
+  n_cons: 1
+  seed: 114
+  test_size: 10
+  batch_size: [ 10, 100, 1000 ]
+  eig_max: 1.0
+  eig_min: 0.0001 # must be positive
+  thresh: 1e6
+  tol: 1e-4

@@ -15,6 +15,8 @@ __all__ = [
     "ConeConstraint",
     "SemiDefiniteConstraint",
     "IneqConstraint",
+    "PolynomialConstraints",
+    "SosPolynomialConstraints",
 ]
 
 
@@ -610,7 +612,7 @@ class SosPolynomialConstraints(ConstrainedSet):
     and :math:`Q` is a positive semidefinite matrix.
     """
 
-    def __init__(self, Qs: Tensor, dim: int, rhs: Tensor | None = None):
+    def __init__(self, Qs: Tensor, degree: int, rhs: Tensor | None = None):
         """
         A class to represent sum-of-squares polynomial constraints of the form:
 
@@ -628,8 +630,8 @@ class SosPolynomialConstraints(ConstrainedSet):
         super().__init__()
         self.Qs = Qs.unsqueeze(0) if Qs.dim() == 2 else Qs
         self.rhs: Tensor = rhs.flatten() if rhs is not None else np.zeros(Qs.shape[0])
-        self.dim = dim
-        assert self.Qs.dim == 3
+        self.degree = degree
+        assert self.Qs.dim() == 3
 
     def compute_monomials(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -643,12 +645,12 @@ class SosPolynomialConstraints(ConstrainedSet):
         # Handle the d=0 case (constant term)
         monomials = [torch.ones(n, 1, device=x.device)]
 
-        if self.dim > 0:
+        if self.degree > 0:
             # Degree-1 monomials (the variables themselves)
             monomials.append(x)
 
         # Generate monomials of degree 2 up to d
-        for degree in range(2, self.dim + 1):
+        for degree in range(2, self.degree + 1):
             # Get all combinations of variable indices with replacement
             indices_combinations = itertools.combinations_with_replacement(range(m), degree)
 
@@ -684,6 +686,7 @@ class SosPolynomialConstraints(ConstrainedSet):
             ii = self.check_feasibility_v(os + ul[2].view(-1, 1) * vs, device)
             ul[0][ii] = ul[2][ii]
             ul[1][~ii] = ul[2][~ii]
+            ul[2] = (ul[0] + ul[1]) / 2.0
 
         fsu = self.check_feasibility_v(os + thresh * vs, device)
         fsl = self.check_feasibility_v(os + tol * vs, device)

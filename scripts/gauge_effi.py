@@ -1,3 +1,4 @@
+import itertools
 import os
 import time
 import logging
@@ -16,33 +17,40 @@ logger = logging.getLogger(__name__)
 class Collector:
 
     def __init__(self):
-        self.target = []
-        self.n_cons = []
-        self.dim = []
-        self.seed = []
-        self.ip_time = []
-        self.gauge_time = []
-        self.bs = []
+        self.kv = {
+            "target": [],
+            "n_cons": [],
+            "dim": [],
+            "seed": [],
+            "ip_time": [],
+            "gauge_time": [],
+            "batch_size": [],
+        }
 
-    def collect(self, target, n_cons, dim, seed, batch_size, ip_time, gauge_time):
-        self.target.append(target)
-        self.n_cons.append(n_cons)
-        self.dim.append(dim)
-        self.seed.append(seed)
-        self.ip_time.append(ip_time)
-        self.gauge_time.append(gauge_time)
-        self.bs.append(batch_size)
+    def collect(self, target, n_cons, dim, seed, batch_size, ip_time, gauge_time, **kwargs):
+        self.kv["target"].append(target)
+        self.kv["n_cons"].append(n_cons)
+        self.kv["dim"].append(dim)
+        self.kv["seed"].append(seed)
+        self.kv["ip_time"].append(ip_time)
+        self.kv["gauge_time"].append(gauge_time)
+        self.kv["batch_size"].append(batch_size)
+        length = len(self.kv["target"]) - 1
+        for k, v in kwargs.items():
+            self.pad(k, length)
+            self.kv[k].append(v)
 
     def save(self, file="gauge_effi.csv"):
-        pd.DataFrame({
-            "target": self.target,
-            "n_cons": self.n_cons,
-            "dim": self.dim,
-            "seed": self.seed,
-            "batch_size": self.bs,
-            "ip_time": self.ip_time,
-            "gauge_time": self.gauge_time,
-        }).to_csv(file, index=False)
+        length = len(self.kv["target"])
+        for k in self.kv.keys():
+            self.pad(k, length)
+        pd.DataFrame(self.kv).to_csv(file, index=False)
+
+    def pad(self, key, length):
+        if key not in self.kv:
+            self.kv[key] = []
+        while len(self.kv[key]) < length:
+            self.kv[key].append(None)
 
 
 @hydra.main(version_base=None, config_path="../configs", config_name="gauge_effi")
@@ -50,29 +58,35 @@ def main(cfg: DictConfig):
     collector = Collector()
     logger.debug(os.getcwd())
 
-    match cfg.target:
-        case "linear":
-            logger.info(f"Testing linear constraints:\n  {OmegaConf.to_yaml(cfg.linear)}")
-            for i in range(cfg.repeat):
-                logger.debug(f"Repeat {i}")
-                test_linear(cfg.linear, collector)
-        case "quadratic":
-            logger.info(f"Testing quadratic constraints:\n  {OmegaConf.to_yaml(cfg.quadratic)}")
-            for i in range(cfg.repeat):
-                logger.debug(f"Repeat {i}")
-                test_qc(cfg.quadratic, collector)
-        case "soc":
-            logger.info(f"Testing soc constraints:\n  {OmegaConf.to_yaml(cfg.soc)}")
-            for i in range(cfg.repeat):
-                logger.debug(f"Repeat {i}")
-                test_soc(cfg.soc, collector)
-        case "lmi":
-            logger.info(f"Testing lmi constraints:\n  {OmegaConf.to_yaml(cfg.lmi)}")
-            for i in range(cfg.repeat):
-                logger.debug(f"Repeat {i}")
-                test_lmi(cfg.lmi, collector)
-        case _:
-            raise NotImplementedError(f"Target '{cfg.target}' not implemented.")
+    for target in cfg.target:
+        match target:
+            case "linear":
+                logger.info("Testing linear constraints:\n\t%s", OmegaConf.to_container(cfg.linear))
+                for i in range(cfg.repeat):
+                    logger.debug(f"Repeat {i}")
+                    test_linear(cfg.linear, collector)
+            case "quadratic":
+                logger.info("Testing quadratic constraints:\n\t%s", OmegaConf.to_container(cfg.quadratic))
+                for i in range(cfg.repeat):
+                    logger.debug(f"Repeat {i}")
+                    test_qc(cfg.quadratic, collector)
+            case "soc":
+                logger.info("Testing soc constraints:\n\t%s", OmegaConf.to_container(cfg.soc))
+                for i in range(cfg.repeat):
+                    logger.debug(f"Repeat {i}")
+                    test_soc(cfg.soc, collector)
+            case "lmi":
+                logger.info("Testing lmi constraints:\n\t%s", OmegaConf.to_container(cfg.lmi))
+                for i in range(cfg.repeat):
+                    logger.debug(f"Repeat {i}")
+                    test_lmi(cfg.lmi, collector)
+            case "poly":
+                logger.info("Testing polytope constraints:\n\t%s", OmegaConf.to_container(cfg.poly))
+                for i in range(cfg.repeat):
+                    logger.debug(f"Repeat {i}")
+                    test_poly(cfg.poly, collector)
+            case _:
+                raise NotImplementedError(f"Target '{cfg.target}' not implemented.")
 
     fn = f"{cfg.target}_effi.csv"
     collector.save(fn)
@@ -88,11 +102,12 @@ def solve_ip(a, x, constraints):
     return end - start, x.value
 
 
-def test_gauge(domain: gfm.ConstrainedSet, bs: int, ip: np.ndarray, d: int) -> float:
+def test_gauge(domain: gfm.ConstrainedSet, bs: int, ip: np.ndarray, d: int,
+               thresh: float = 1e8, tol: float = 1e-6) -> float:
     vs = torch.randn((bs, d)).to(torch.float32)
     os = torch.from_numpy(ip).to(torch.float32).expand(bs, -1)
     start = time.time()
-    domain.eval_intersection_v(os, vs)
+    domain.eval_intersection_v(os, vs, thresh=thresh, tol=tol)
     end = time.time()
     gauge_time = end - start
     return gauge_time
@@ -205,6 +220,45 @@ def test_lmi(cfg: DictConfig, collector: Collector):
 
             collector.collect("LMI", cfg.n_cons, d, cfg.seed, bs, ip_time, gauge_time)
             logger.info(f"LMI test of dimension {d} finished in {ip_time:.2f} and {gauge_time:.2f} seconds.")
+
+
+import sympy as sp
+
+
+def test_poly(cfg: DictConfig, collector: Collector):
+    rng = torch.Generator().manual_seed(cfg.seed)
+
+    for dim, degree, bs in itertools.product(cfg.dims, cfg.degrees, cfg.batch_size):
+        sym = sp.symbols(f"x:{dim}")
+        n_mono = len(gfm.generate_monomials(sym, degree, constant=True))
+
+        Qs = torch.zeros(cfg.n_cons, n_mono, n_mono, dtype=torch.float32)
+        rhs = torch.rand(cfg.n_cons, dtype=torch.float32, generator=rng)
+
+        for i in range(cfg.n_cons):
+            ev = torch.rand(n_mono, dtype=torch.float32, generator=rng) * (cfg.eig_max - cfg.eig_min) + cfg.eig_min
+            D = torch.diag(ev)
+
+            Z = torch.randn(n_mono, n_mono, dtype=torch.float32, generator=rng)
+            Q, _ = torch.linalg.qr(Z, mode="complete")
+
+            Qs[i] = Q @ D @ Q.T
+        Qs[:, -1, -1] = 0.0  # ensure that \vec{0} is an interior point
+
+        domain = gfm.SosPolynomialConstraints(Qs, degree, rhs)
+
+        ip = np.zeros(dim, dtype=np.float32)
+        ip_time = 0.0
+
+        gauge_time = test_gauge(domain, bs, ip, dim, thresh=cfg.thresh, tol=cfg.tol)
+
+        collector.collect(
+            "Polynomial", cfg.n_cons, dim, cfg.seed, bs,
+            ip_time, gauge_time,
+            degree=degree,
+        )
+        logger.info("Polynomial test of dimension %d and degree %d finished in %.2f seconds.",
+                    dim, degree, gauge_time)
 
 
 if __name__ == "__main__":
