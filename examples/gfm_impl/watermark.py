@@ -92,15 +92,17 @@ class Watermark(examples.GfmExampleBase):
         return gfm.PolytopeReflector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
 
     def _project_rf(self):
-        return gfm.PolytopeProjector(self.basis, self.bounds)
+        return gfm.PolytopeProjector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
 
     def _vectorize(self, xs: Tensor) -> Tensor:
         return xs.reshape(xs.shape[0], -1)
 
     def training_step(self, batch, batch_idx):
         x_1 = self._vectorize(batch[0])
-        if self.cfg.method.name.startswith("gauge"): x_1 = self._project_rf()(x_1)
         z_1 = self.transform(x_1)
+        if self.cfg.method.name.startswith("gauge"):
+            z_1[z_1 > 1.0] = 1.0
+            z_1[z_1 < -1.0] = -1.0
         return super().training_step([z_1], batch_idx)
 
     def get_prior(self) -> torch.distributions.Distribution:

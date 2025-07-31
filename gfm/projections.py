@@ -58,8 +58,8 @@ class PolytopeProjector:
             self.b = b
 
             self.G = np.eye(At.shape[0])
-            self.C = -At.detach().cpu().numpy().astype(np.double)
-            self.b_numpy = -b.detach().cpu().numpy().flatten().astype(np.double)
+            self.C = -At.cpu().numpy().astype(np.double)
+            self.b_numpy = -b.cpu().numpy().flatten().astype(np.double)
 
             self.box_lower = box_lower
             self.box_upper = box_upper
@@ -67,7 +67,7 @@ class PolytopeProjector:
 
     def do_projection(self, y: Tensor) -> Tensor:
         with torch.no_grad():
-            q = y.detach().cpu().numpy().flatten().astype(np.double)
+            q = y.cpu().numpy().flatten().astype(np.double)
             # sol = cvxopt.solvers.qp(self.P, q, self.G, self.h)
             x, _, _, _, _, _ = solve_qp(self.G, q, self.C, self.b_numpy, meq=0, factorized=True)
             return torch.from_numpy(x.flatten()).to(y.device)
