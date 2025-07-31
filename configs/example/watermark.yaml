@@ -7,10 +7,12 @@ dimension: 12288
 
 # afhq-v2 dataset
 data_path: ../../../data/afhqv2-64x64.zip
+#data_path: ../../../data/afhqv2-64x64/
 basis_path: ../../../data/afhqv2_orthobasis_3x64x64.pt
 # ffhq dataset
 #data_path: ../../../data/ffhq-64x64.zip
-basis_path: ../../../data/ffhq_orthobasis_3x64x64.pt
+#data_path: ../../../data/ffhq-64x64/
+#basis_path: ../../../data/ffhq_orthobasis_3x64x64.pt
 
 use_pyspng: true
 max_size: ~
