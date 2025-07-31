@@ -84,6 +84,7 @@ def on_test(cfg: DictConfig):
         cfg.test.checkpoint if cfg.test.get("checkpoint", None) is not None else
         os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"),
         cfg=cfg,
+        strict=False,
     )
     logger.info("Model initialized.")
 
