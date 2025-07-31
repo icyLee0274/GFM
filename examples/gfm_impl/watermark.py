@@ -164,19 +164,22 @@ class Watermark(examples.GfmExampleBase):
                 case "L_inf":
                     n_pixels = self.cfg.example.n_pixels
                     domain = gfm.LinearConstraint(b=self.bounds, At=self.basis, box_lower=-1.0, box_upper=1.0)
-                    gauge_map = gfm.GaugeMap( domain, torch.zeros(n_pixels, device=self.device), "cube")
+                    gauge_map = gfm.GaugeMap(domain, torch.zeros(n_pixels, device=self.device), "cube")
+
                     def phi(x: Tensor) -> Tensor:
                         y = x.clone()
                         y[:, :n_pixels] = gauge_map.to_disk(x[:, :n_pixels])
                         return y
+
                     def phi_inv(z: Tensor) -> Tensor:
                         y = z.clone()
                         y[:, :n_pixels] = gauge_map.from_disk(z[:, :n_pixels])
                         return y
+
                     transform = phi
                     inverse_transform = phi_inv
                 case None:
                     transform = lambda x: x
                     inverse_transform = lambda x: x
             setattr(self, "_transform", transform)
-            setattr(self, "_inverse_transform", inverse_transform
+            setattr(self, "_inverse_transform", inverse_transform)
