@@ -42,6 +42,7 @@ class Watermark(examples.GfmExampleBase):
             batch_size=self.cfg.train.batch_size,
             shuffle=True,
             num_workers=self.cfg.train.get("dataloader_workers", 1),
+            generator=torch.Generator(device=self.device),
         )
 
     def test_step(self, *args, **kwargs) -> STEP_OUTPUT:
