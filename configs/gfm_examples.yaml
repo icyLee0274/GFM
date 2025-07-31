@@ -12,6 +12,8 @@ hydra:
   job:
     chdir: true
 
+log_level: INFO # DEBUG, INFO, WARNING, ERROR, CRITICAL or a number
+
 accelerator: cpu
 devices: auto
 

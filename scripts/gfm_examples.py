@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 
 @hydra.main(config_path="../configs", config_name="gfm_examples", version_base=None)
 def main(cfg: DictConfig):
+    logging.basicConfig(level=cfg.log_level)
     if cfg.accelerator == "gpu":
         if torch.cuda.is_available():
             if cfg.devices is not str and hasattr(cfg.devices, "__getitem__"):
