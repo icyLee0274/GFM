@@ -1,6 +1,6 @@
 import torch
 
-__all__ = ['mmd_square', 'gaussian_kernel', 'maximum_mean_discrepancy']
+__all__ = ['mmd_square', 'gaussian_kernel', 'maximum_mean_discrepancy', 'compute_mmd']
 
 
 def gaussian_kernel(
@@ -52,3 +52,25 @@ def mmd_square(xs: torch.Tensor, ys: torch.Tensor, sigma: float = 1.0) -> float:
 
 def maximum_mean_discrepancy(xs: torch.Tensor, ys: torch.Tensor, sigma: float = 1.0) -> float:
     return mmd_square(xs, ys, sigma) ** 0.5
+
+
+def compute_mmd(xs: torch.Tensor, ys: torch.Tensor, sigma: float = 1.0) -> float:
+    """
+    Computes the Maximum Mean Discrepancy (MMD) between two sets of samples.
+
+    Args:
+        xs (torch.Tensor): Samples from distribution X, shape (n_samples_x, n_features).
+        ys (torch.Tensor): Samples from distribution Y, shape (n_samples_y, n_features).
+        sigma (float): Bandwidth for the Gaussian kernel.
+
+    Returns:
+        float: The MMD value.
+    """
+    m = xs.shape[0]
+    n = ys.shape[0]
+    k_xx = gaussian_kernel(xs, xs, sigma)
+    k_yy = gaussian_kernel(ys, ys, sigma)
+    k_xy = gaussian_kernel(xs, ys, sigma)
+
+    mmd_sq = k_xx.sum() / (m * m) + k_yy.sum() / (n * n) - 2 * k_xy.sum() / (m * n)
+    return mmd_sq.sqrt().item()
