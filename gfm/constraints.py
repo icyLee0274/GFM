@@ -297,11 +297,14 @@ class LinearConstraint(ConstrainedSet):
         ts[fs] = torch.inf
 
         if self.boxed:
-            tb = torch.maximum(self.box_upper - os, self.box_lower - os)
-            tb = tb / vs
-            tb[tb < 0] = torch.inf
-            tb = torch.min(tb, dim=1)[0]
+            tu = (self.box_upper - os) / vs
+            tl = (self.box_lower - os) / vs
+            tu[tu < 0] = torch.inf
+            tl[tl < 0] = torch.inf
+            tu, _ = torch.min(tu, dim=1)
+            tl, _ = torch.min(tl, dim=1)
 
+            tb = torch.minimum(tl, tu)
             ts = torch.minimum(ts, tb)
 
         return ts

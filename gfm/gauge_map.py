@@ -75,6 +75,7 @@ class GaugeMap:
         This method implements the inverse (geodesic) gauge map:
 
         .. math::
+
             \Phi^{-1}(x) &= \gamma_\mathcal{U}(x, x^\circ) v_x \\
                          &= r_x v_x / d_\mathcal{U}(x^\circ, v_x) \\
                          &= u_x / d_\mathcal{U}(x^\circ, v_x) \\

@@ -41,7 +41,7 @@ class Watermark(examples.GfmExampleBase):
             dataset,
             batch_size=self.cfg.train.batch_size,
             shuffle=True,
-            num_workers=self.cfg.train.get("dataloader_workers", 1),
+            num_workers=self.cfg.train.get("dataloader_workers", 0),
             generator=torch.Generator(device=self.device),
         )
 
@@ -93,11 +93,12 @@ class Watermark(examples.GfmExampleBase):
     def _project_rf(self):
         return gfm.PolytopeProjector(self.basis, self.bounds)
 
-    def vectorize(self, xs: Tensor) -> Tensor:
+    def _vectorize(self, xs: Tensor) -> Tensor:
         return xs.reshape(xs.shape[0], -1)
 
     def training_step(self, batch, batch_idx):
-        x_1 = self.vectorize(batch[0])
+        x_1 = self._vectorize(batch[0])
+        if self.cfg.method.name.startswith("gauge"): x_1 = self._project_rf()(x_1)
         z_1 = self.transform(x_1)
         return super().training_step([z_1], batch_idx)
 
