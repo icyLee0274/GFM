@@ -79,7 +79,7 @@ class Watermark(examples.GfmExampleBase):
 
         # The basis is a tensor of shape (d, K)
         # The constraints are given by: lower <= x `basis` <= upper
-        dim = self.example.dimension
+        dim = self.cfg.example.dimension
         cons = basis.shape[1]
         n_pixels = self.cfg.example.n_pixels
         basis[n_pixels:, :] = 0
