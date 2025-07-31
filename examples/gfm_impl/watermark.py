@@ -20,6 +20,7 @@ class Watermark(examples.GfmExampleBase):
 
     def __init__(self, cfg: DictConfig):
         super().__init__(cfg)
+        self._init_domain()
 
     def _init_data(self, n: int) -> Tensor:
         raise RuntimeError(
