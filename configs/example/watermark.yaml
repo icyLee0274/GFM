@@ -1,0 +1,18 @@
+name: Watermark
+implementation: Watermark
+dimension: 12288
+
+
+###### Dataset configurations ######
+
+# afhq-v2 dataset
+data_path: ../../../data/afhqv2-64x64.zip
+# ffhq dataset
+#data_path: ../../../data/ffhq-64x64.zip
+
+use_pyspng: true
+max_size: ~
+#use_labels: false
+#xflip: false
+dataset_seed: 42
+dataset_cache: false

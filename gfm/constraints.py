@@ -213,7 +213,14 @@ class ConstrainedSet:
 
 class LinearConstraint(ConstrainedSet):
 
-    def __init__(self, A: Tensor, b: Tensor):
+    def __init__(
+            self,
+            A: Tensor | None = None,
+            b: Tensor | None = None,
+            At: Tensor | None = None,
+            box_lower: float | None = None,
+            box_upper: float | None = None,
+    ):
         """
         Linear constrained set defined by
 
@@ -225,8 +232,13 @@ class LinearConstraint(ConstrainedSet):
         :param b: Constant vector of length K.
         """
         super().__init__()
-        self.At = A.transpose(0, 1)
+        self.At: Tensor = A.transpose(0, 1) if At is None else At
         self.b = b.view(1, -1)
+        assert self.At is not None
+        assert self.b is not None
+        self.box_lower = box_lower
+        self.box_upper = box_upper
+        self.boxed = box_lower is not None and box_upper is not None
 
     def _eval_lhs(self, x: Tensor) -> Tensor:
         """
@@ -241,7 +253,9 @@ class LinearConstraint(ConstrainedSet):
         return torch.matmul(x, self.At.to(x))
 
     def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
-        return torch.all((points.mm(self.At.to(points)) <= self.b.to(points)), dim=1).to(device)
+        linear = torch.all((points.mm(self.At.to(points)) <= self.b.to(points)), dim=1).to(device)
+        return (linear & torch.all((points <= self.box_upper) & (points >= self.box_lower), dim=1)
+                if self.boxed else linear)
 
     def check_feasibility(self, point: Tensor) -> bool:
         return self.check_feasibility_v(point.view(1, -1), point.device)[0].item()
@@ -260,7 +274,15 @@ class LinearConstraint(ConstrainedSet):
         """
         Evaluate the intersection of boundary and ray with direction v from o.
 
+        .. math::
+
             t = (b - a^T o) / a^T v
+
+        For box constraints, the intersection is computed as:
+
+        .. math::
+
+            x + t v = bound \implies t = \min_{i} \\frac{bound - x_i}{v_i}
         """
         ao = self._eval_lhs(os)  # n * K
         av = self._eval_lhs(vs)  # n * K
@@ -273,6 +295,15 @@ class LinearConstraint(ConstrainedSet):
         ts[ii] = torch.inf
         ts = torch.min(ts, dim=1)[0]
         ts[fs] = torch.inf
+
+        if self.boxed:
+            tb = torch.maximum(self.box_upper - os, self.box_lower - os)
+            tb = tb / vs
+            tb[tb < 0] = torch.inf
+            tb = torch.min(tb, dim=1)[0]
+
+            ts = torch.minimum(ts, tb)
+
         return ts
 
 

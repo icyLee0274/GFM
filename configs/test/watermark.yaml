@@ -1,0 +1,7 @@
+n_gen: 1000
+repeats: 10
+n_steps: 100
+save_gen: true
+
+checkpoint: ~
+#checkpoint: ../vanilla-final.ckpt

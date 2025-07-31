@@ -65,12 +65,20 @@ def cube_reflect(o: Tensor, v: Tensor) -> Tensor:
 
 class PolytopeReflector:
 
-    def __init__(self, At: torch.Tensor, b: torch.Tensor):
+    def __init__(self,
+                 At: torch.Tensor,
+                 b: torch.Tensor,
+                 box_lower: float | None = None,
+                 box_upper: float | None = None):
         self.b = b
         self.A = At.T
         self.At = At
+        self.box_lower = box_lower
+        self.box_upper = box_upper
+        self.boxed = box_upper is not None and box_lower is not None
 
     def __call__(self, os: torch.Tensor, vs: torch.Tensor) -> torch.Tensor:
+        ######## Linear constraints ########
         A = self.A.to(os.device)  # K * d
         At = self.At.to(os.device)  # d * K
         b = self.b.to(os.device)
@@ -83,10 +91,34 @@ class PolytopeReflector:
         ts[ii] = torch.inf
         ts[ts < 0] = torch.inf
         ts, jj = torch.min(ts, dim=1)
+
+        # normal vectors
+        ns = A[jj]  ## n * d, normal vectors
+
+        ######### Box constraints #########
+        if self.boxed:
+            tu = (self.box_upper - os) / vs
+            tu[tu < 0] = torch.inf
+            tu, iu = torch.min(tu, dim=1)
+
+            tl = (self.box_lower - os) / vs
+            tl[tl < 0] = torch.inf
+            tl, il = torch.min(tl, dim=1)
+
+            ju = (tu < ts) & (tu < tl)  # hit upper box bound
+            jl = (tl < ts) & (tl < tu)  # hit lower box bound
+
+            ns[ju, :] = 0.0  # reset normal vector for upper box bound
+            ns[jl, :] = 0.0
+            ns[ju, iu[ju]] = 1.0  # normal vector for upper box bound
+            ns[jl, il[jl]] = -1.0  # normal vector for lower box bound
+
+            ts[ju] = tu[ju]  # update step length for upper box bound
+            ts[jl] = tl[jl]  # update step length for lower box bound
+
         ts = torch.minimum(ts, torch.ones_like(ts))
 
         xs = os + ts.view(-1, 1) * vs  ## end point before reflection
-        ns = A[jj]  ## n * d, normal vectors
         nv = torch.einsum("ik, ik -> i", ns, vs).view(-1, 1)
         nn = torch.einsum("ik, ik -> i", ns, ns).view(-1, 1)
         rs = vs - 2 * (nv / nn) * ns  ## reflected direction

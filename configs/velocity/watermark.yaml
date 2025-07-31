@@ -1,0 +1,3 @@
+implementation: "ResNet"
+width: 16384
+layers: 4

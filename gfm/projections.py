@@ -52,7 +52,7 @@ class EllipsoidProjector:
 
 class PolytopeProjector:
 
-    def __init__(self, At: Tensor, b: Tensor):
+    def __init__(self, At: Tensor, b: Tensor, box_lower: float | None = None, box_upper: float | None = None):
         with torch.no_grad():
             self.At = At
             self.b = b
@@ -60,6 +60,10 @@ class PolytopeProjector:
             self.G = np.eye(At.shape[0])
             self.C = -At.numpy().astype(np.double)
             self.b_numpy = -b.numpy().flatten().astype(np.double)
+
+            self.box_lower = box_lower
+            self.box_upper = box_upper
+            self.boxed = box_lower is not None or box_upper is not None
 
     def do_projection(self, y: Tensor) -> Tensor:
         with torch.no_grad():
@@ -76,6 +80,11 @@ class PolytopeProjector:
         for i in range(ds.shape[0]):
             if fs[i]:
                 ds[i] = self.do_projection(ds[i])
+
+        if self.boxed:
+            ds[ds > self.box_upper] = self.box_upper
+            ds[ds < self.box_lower] = self.box_lower
+
         return ds
 
 

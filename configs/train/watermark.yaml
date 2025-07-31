@@ -1,0 +1,18 @@
+epoch: 2
+batch_size: 128
+
+dataloader_workers: 4
+
+loss: MSELoss
+
+optimizer: Adam
+optimizer_args:
+  lr: 5e-3
+  weight_decay: 1e-5
+
+# LRStep
+scheduler_args:
+  gamma: 0.99
+  step_size: 100
+
+checkpoint: 1 # save checkpoints every {} epochs

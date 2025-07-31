@@ -5,3 +5,5 @@ from .star_convex import Star, StarDomain
 from .sphere_3d import Sphere3D
 from .combinatorial import Combinatorial
 from .robotic import Robotic
+from .watermark import Watermark
+from .image_dataset import ImageDataset, ImageFolderDataset
