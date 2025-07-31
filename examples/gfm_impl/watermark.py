@@ -69,18 +69,26 @@ class Watermark(examples.GfmExampleBase):
         basis = torch.load(f_basis, map_location=self.device, weights_only=True)
         logger.info("Loaded basis from %s", f_basis)
 
-        upper, lower = {
-            "ffhq": (1.05, -1.05),
-            "afhqv2": (0.9, -0.9),
-        }.get(self.cfg.example.dataset_name, (None, None))
-        if upper is None: raise RuntimeError(f"Invalid dataset name {self.cfg.example.dataset_name}.")
+        # upper, lower = {
+        #     "ffhq": (1.05, -1.05),
+        # "afhqv2": (0.9, -0.9),
+        # }.get(self.cfg.example.dataset_name, (None, None))
+        # if upper is None: raise RuntimeError(f"Invalid dataset name {self.cfg.example.dataset_name}.")
+        upper = self.cfg.example.upper
+        lower = self.cfg.example.lower
 
         # The basis is a tensor of shape (d, K)
         # The constraints are given by: lower <= x `basis` <= upper
-        dim = basis.shape[0]
+        dim = self.example.dimension
         cons = basis.shape[1]
         n_pixels = self.cfg.example.n_pixels
         basis[n_pixels:, :] = 0
+
+        if basis.shape[0] < dim:
+            ex_basis = torch.zeros(dim, cons, device=self.device)
+            ex_basis[:basis.shape[0], :] = basis
+            basis = ex_basis
+
         At = torch.cat([basis, -basis], dim=1)
         b = torch.cat([torch.full([cons], upper, device=self.device),
                        torch.full([cons], -lower, device=self.device)], dim=0)
@@ -89,6 +97,12 @@ class Watermark(examples.GfmExampleBase):
         domain = gfm.LinearConstraint(b=b, At=At, box_lower=-1.0, box_upper=1.0)
 
         return domain, torch.zeros(basis.shape[0], device=self.device)
+
+    def generate_basis(self):
+        dim = self.cfg.example.n_pixels
+        Z = torch.randn(dim, dim, device=self.device)
+        Q, _ = torch.linalg.qr(Z, mode="complete")
+        return Q
 
     def _reflect_rf(self):
 

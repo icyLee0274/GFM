@@ -4,6 +4,9 @@ dimension: 12288
 
 n_pixels: 32
 
+upper: 1.05
+lower: -1.05
+
 ###### Dataset configurations ######
 
 # afhq-v2 dataset
