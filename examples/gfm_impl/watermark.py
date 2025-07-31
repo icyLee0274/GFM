@@ -79,20 +79,43 @@ class Watermark(examples.GfmExampleBase):
         # The constraints are given by: lower <= x `basis` <= upper
         dim = basis.shape[0]
         cons = basis.shape[1]
+        n_pixels = self.cfg.example.n_pixels
+        basis[n_pixels:, :] = 0
         At = torch.cat([basis, -basis], dim=1)
         b = torch.cat([torch.full([cons], upper, device=self.device),
                        torch.full([cons], -lower, device=self.device)], dim=0)
-        self.register_buffer('basis', At)
+        self.register_buffer('basis', torch.cat([basis[:n_pixels, :], -basis[:n_pixels, :]], dim=0))
         self.register_buffer('bounds', b)
         domain = gfm.LinearConstraint(b=b, At=At, box_lower=-1.0, box_upper=1.0)
 
         return domain, torch.zeros(basis.shape[0], device=self.device)
 
     def _reflect_rf(self):
-        return gfm.PolytopeReflector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
+
+        rf0 = gfm.PolytopeReflector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
+        rf1 = gfm.cube_reflect
+        n_pixels = self.cfg.example.n_pixels
+
+        def reflect_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = torch.zeros_like(vs)
+            xs[:, :n_pixels] = rf0(os[:, :n_pixels], vs[:, :n_pixels])
+            xs[:, n_pixels:] = rf1(os[:, n_pixels:], vs[:, n_pixels:])
+            return xs
+
+        return reflect_fn
 
     def _project_rf(self):
-        return gfm.PolytopeProjector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
+        pf0 = gfm.PolytopeProjector(self.basis, self.bounds, box_lower=-1.0, box_upper=1.0)
+        pf1 = gfm.cube_project
+        n_pixels = self.cfg.example.n_pixels
+
+        def project_fn(os: Tensor, vs: Tensor) -> Tensor:
+            xs = torch.zeros_like(vs)
+            xs[:, :n_pixels] = pf0(os[:, :n_pixels], vs[:, :n_pixels])
+            xs[:, n_pixels:] = pf1(os[:, n_pixels:], vs[:, n_pixels:])
+            return xs
+
+        return project_fn
 
     def _vectorize(self, xs: Tensor) -> Tensor:
         return xs.reshape(xs.shape[0], -1)
@@ -110,8 +133,14 @@ class Watermark(examples.GfmExampleBase):
         if dist is None:
             dim = self.cfg.example.dimension
             match self.cfg.method.name:
-                case "vanilla" | "reflect" | "project":
+                case "vanilla":
                     dist = gfm.box_uniform(torch.zeros(dim, device=self.device), torch.ones(dim, device=self.device))
+                case "reflect" | "project":
+                    dist = gfm.TruncatedDistribution(
+                        gfm.box_uniform(torch.zeros(dim, device=self.device), torch.ones(dim, device=self.device)),
+                        self.get_domain(),
+                        self.device
+                    )
                 case "ddpm":
                     dist = MultivariateNormal(torch.zeros(dim, device=self.device), torch.eye(dim, device=self.device))
                 case "gauge_reflect" | "gauge_project":
@@ -124,3 +153,30 @@ class Watermark(examples.GfmExampleBase):
                     raise NotImplementedError(f"Method {self.cfg.method.name} not implemented for prior distribution.")
             setattr(self, "_prior", dist)
         return dist
+
+    def _init_transformation(self):
+        transform = getattr(self, "_transform", None)
+        inverse_transform = getattr(self, "_inverse_transform", None)
+        if transform is None:
+            match self.cfg.method.transform:
+                case "L2":
+                    raise NotImplementedError("L2 transformation is not used for images.")
+                case "L_inf":
+                    n_pixels = self.cfg.example.n_pixels
+                    domain = gfm.LinearConstraint(b=self.bounds, At=self.basis, box_lower=-1.0, box_upper=1.0)
+                    gauge_map = gfm.GaugeMap( domain, torch.zeros(n_pixels, device=self.device), "cube")
+                    def phi(x: Tensor) -> Tensor:
+                        y = x.clone()
+                        y[:, :n_pixels] = gauge_map.to_disk(x[:, :n_pixels])
+                        return y
+                    def phi_inv(z: Tensor) -> Tensor:
+                        y = z.clone()
+                        y[:, :n_pixels] = gauge_map.from_disk(z[:, :n_pixels])
+                        return y
+                    transform = phi
+                    inverse_transform = phi_inv
+                case None:
+                    transform = lambda x: x
+                    inverse_transform = lambda x: x
+            setattr(self, "_transform", transform)
+            setattr(self, "_inverse_transform", inverse_transform

@@ -2,14 +2,17 @@ name: Watermark
 implementation: Watermark
 dimension: 12288
 
+n_pixels: 32
 
 ###### Dataset configurations ######
 
 # afhq-v2 dataset
+dataset_name: afhqv2
 data_path: ../../../data/afhqv2-64x64.zip
 #data_path: ../../../data/afhqv2-64x64/
 basis_path: ../../../data/afhqv2_orthobasis_3x64x64.pt
 # ffhq dataset
+#dataset_name: ffhq
 #data_path: ../../../data/ffhq-64x64.zip
 #data_path: ../../../data/ffhq-64x64/
 #basis_path: ../../../data/ffhq_orthobasis_3x64x64.pt
