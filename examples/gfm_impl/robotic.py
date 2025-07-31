@@ -70,13 +70,23 @@ class Robotic(examples.GfmExampleBase):
 
         poss_np = poss.cpu().numpy()
 
-        xy = torch.empty([15, 10000, 2], dtype=torch.float32, device=self.device)
+        xy = torch.empty([16, 10000, 2], dtype=torch.float32, device=self.device)
         ts = np.linspace(0, 1, 200)
         ss = np.linspace(0, 1, 10000)
         for i in range(15):
             interp = interpolate.make_interp_spline(ts, poss_np[:, [2 * i, 2 * i + 1]])
             xy[i] = torch.from_numpy(interp(ss)).to(xy)
-        xy = xy.view(150000, -1)
+
+        xy[-1] = xy[0]
+        spd0 = spd[:10000, :]
+        ranges = 0.5 * (5.11 - spd0[:, 2] + spd0[:, 0])
+        noise = torch.rand_like(ranges) * ranges
+        spd0[:, 0] += noise
+        spd0[:, 2] += noise
+
+        spd = torch.cat([spd, spd0], dim=0)
+
+        xy = xy.view(160000, -1)
 
         data = torch.cat([xy, spd], dim=1).to(self.device, dtype=torch.float32)
 

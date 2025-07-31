@@ -253,7 +253,7 @@ class LinearConstraint(ConstrainedSet):
         return torch.matmul(x, self.At.to(x))
 
     def check_feasibility_v(self, points: Tensor, device=torch.get_default_device()) -> Tensor:
-        linear = torch.all((points.mm(self.At.to(points)) <= self.b.to(points)), dim=1).to(device)
+        linear = torch.all((points.mm(self.At.to(points)) <= self.b.to(points)), dim=1).to(points.device)
         return (linear & torch.all((points <= self.box_upper) & (points >= self.box_lower), dim=1)
                 if self.boxed else linear)
 
