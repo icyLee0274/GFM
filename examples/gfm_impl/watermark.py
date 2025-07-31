@@ -92,8 +92,8 @@ class Watermark(examples.GfmExampleBase):
         At = torch.cat([basis, -basis], dim=1)
         b = torch.cat([torch.full([cons], upper, device=self.device),
                        torch.full([cons], -lower, device=self.device)], dim=0)
-        self.register_buffer('basis', torch.cat([basis[:n_pixels, :], -basis[:n_pixels, :]], dim=1))
-        self.register_buffer('bounds', b)
+        self.register_buffer('basis', torch.cat([basis[:n_pixels, :], -basis[:n_pixels, :]], dim=1), persistent=False)
+        self.register_buffer('bounds', b, persistent=False)
         domain = gfm.LinearConstraint(b=b, At=At, box_lower=-1.0, box_upper=1.0)
 
         return domain, torch.zeros(basis.shape[0], device=self.device)
