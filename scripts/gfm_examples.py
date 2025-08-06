@@ -85,7 +85,7 @@ def on_test(cfg: DictConfig):
     f_ckpt = (os.path.join(cfg.out_prefix, f"{cfg.test.checkpoint}.ckpt")
               if cfg.test.get("checkpoint", None) is not None else
               os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"))
-    model = impl.load_from_checkpoint(f_ckpt, cfg=cfg)
+    model = impl.load_from_checkpoint(f_ckpt, cfg=cfg, strict=False)
     logger.info("Model initialized from %s.", f_ckpt)
 
     trainer = lightning.Trainer(
