@@ -1,0 +1,5 @@
+name: "gauge_meanflow"
+transform: L_inf # L2, L_inf, mirror_2, mirror_inf
+scale: 1
+override_n_in: ${example.dimension}+2
+#prior_center: ~

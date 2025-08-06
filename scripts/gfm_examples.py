@@ -19,7 +19,6 @@ logger = logging.getLogger(__name__)
 
 @hydra.main(config_path="../configs", config_name="gfm_examples", version_base=None)
 def main(cfg: DictConfig):
-    logging.basicConfig(level=cfg.log_level)
     if cfg.accelerator == "gpu":
         if torch.cuda.is_available():
             if cfg.devices is not str and hasattr(cfg.devices, "__getitem__"):
@@ -71,7 +70,10 @@ def on_train(cfg: DictConfig):
     train_time = time.time() - start
     logger.info(f"Training took {train_time} seconds.")
 
-    f = os.path.abspath(os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"))
+    if cfg.get("final_model", None) is None:
+        f = os.path.abspath(os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"))
+    else:
+        f = os.path.abspath(os.path.join(cfg.out_prefix, f"{cfg.final_model}.ckpt"))
     trainer.save_checkpoint(f)
     logger.info("Model saved to %s", f)
 
@@ -80,13 +82,11 @@ def on_test(cfg: DictConfig):
     impl = getattr(impls, cfg.example.implementation, None)
     if impl is None: raise NotImplementedError(
         f"Implementation {cfg.example.implementation} for example {cfg.example.name} not found.")
-    model = impl.load_from_checkpoint(
-        cfg.test.checkpoint if cfg.test.get("checkpoint", None) is not None else
-        os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"),
-        cfg=cfg,
-        strict=False,
-    )
-    logger.info("Model initialized.")
+    f_ckpt = (os.path.join(cfg.out_prefix, f"{cfg.test.checkpoint}.ckpt")
+              if cfg.test.get("checkpoint", None) is not None else
+              os.path.join(cfg.out_prefix, f"{cfg.method.name}-final.ckpt"))
+    model = impl.load_from_checkpoint(f_ckpt, cfg=cfg)
+    logger.info("Model initialized from %s.", f_ckpt)
 
     trainer = lightning.Trainer(
         accelerator=cfg.accelerator,

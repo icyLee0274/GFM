@@ -1,18 +1,15 @@
-import os
 import logging
+import os
 from time import time
 
+import geoopt
+import lightning
 import torch
-from PIL.ImageOps import scale
 from lightning.pytorch.utilities.types import STEP_OUTPUT
 from omegaconf import DictConfig, OmegaConf
 from torch import nn, tensor, Tensor
-import lightning
-from torch.utils.data import DataLoader, TensorDataset
 from torch.distributions import MultivariateNormal
-import geoopt
-
-import ite
+from torch.utils.data import DataLoader, TensorDataset
 
 import gfm
 from gfm import (
@@ -22,7 +19,6 @@ from gfm import (
     odeint_reflect,
     cube_reflect, ball_reflect,
     cube_project, ball_project,
-    MlpVelocityField, ResNet,
     HyperBallUniform, box_uniform,
     maximum_mean_discrepancy, ConstrainedSet,
     TruncatedDistribution,
@@ -39,18 +35,30 @@ class GfmExampleBase(lightning.LightningModule):
     def __init__(self, cfg: DictConfig):
         super().__init__()
         self.cfg = cfg
-        self.velocity = MlpVelocityField(
-            cfg.example.dimension,
-            cfg.velocity.width,
-            cfg.velocity.depth,
-            cfg.velocity.activation
-        ) if cfg.velocity.get("implementation", "MlpVelocityField") == "MlpVelocityField" else (
-            ResNet(
-                cfg.example.dimension + 1,
-                cfg.example.dimension,
-                cfg.velocity.width,
-                cfg.velocity.layers,
-            ))
+        # TODO: load velocity field dynamics
+        vf_impl = getattr(gfm, self.cfg.velocity.implementation)
+        vf_args = OmegaConf.to_container(self.cfg.velocity, resolve=True)
+        vf_args.pop("implementation")
+        if vf_args.get("n_in", None) is None: vf_args["n_in"] = self.cfg.example.dimension + 1
+        if vf_args.get("n_out", None) is None: vf_args["n_out"] = self.cfg.example.dimension
+        if self.cfg.method.get("override_n_in", None) is not None:
+            vf_args["n_in"] = eval(self.cfg.method.override_n_in)
+        if self.cfg.method.get("override_n_out", None) is not None:
+            vf_args["n_out"] = eval(self.cfg.method.override_n_out)
+        self.velocity = vf_impl(**vf_args)
+        # self.velocity = Mlp(
+        #     cfg.example.dimension + 1,
+        #     cfg.example.dimension,
+        #     cfg.velocity.width,
+        #     cfg.velocity.depth,
+        #     cfg.velocity.activation
+        # ) if cfg.velocity.get("implementation", "MlpVelocityField") == "MlpVelocityField" else (
+        #     ResNet(
+        #         cfg.example.dimension + 1,
+        #         cfg.example.dimension,
+        #         cfg.velocity.width,
+        #         cfg.velocity.layers,
+        #     ))
         self.save_hyperparameters()
 
         #### The following buffers are for DDPM only ####
@@ -377,3 +385,46 @@ class GfmExampleBase(lightning.LightningModule):
             t_batch = torch.full((x0.shape[0],), t, dtype=torch.long, device=x0.device)
             x = self.p_sample(t_batch, x)
         return x
+
+    ###### Training and sampling methods for mean flow ######
+
+    def meanflow_training_step(self, batch):
+        """
+        Training step for mean flow.
+        :param batch: Batch of data samples.
+        :return: Loss value.
+        """
+        # Remarks:
+        # Notations in "Mean Flows for One-step Generative Modeling" is inconsistent with the code here,
+        # which is consistent with the original FLow-Matching paper
+        x_1 = batch[0]
+        x_0 = self.get_prior().sample([len(x_1)]).to(x_1)
+        t_s = torch.rand(x_1.size(0), 2).to(x_1)
+        t, s = torch.aminmax(t_s, dim=1, keepdim=True)  # keep dim so that t and s are (N, 1)
+        x_t = (1 - t) * x_0 + t * x_1
+        v = x_1 - x_0
+
+        u, dudt = torch.func.jvp(self.velocity, (x_t, t, s), (v, torch.ones_like(t), torch.zeros_like(s)))
+
+        u_tgt = v + (s - t) * dudt
+
+        loss = self.get_loss()(u, u_tgt.detach())
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True, logger=True)
+        return loss
+
+    def meanflow_integrate(self, x0: Tensor, n_steps: int = 1) -> Tensor:
+        """
+        Integrate the mean flow velocity field.
+        :param x0: Initial sample, shape (N, dim).
+        :param n_steps: Number of integration steps.
+        :return: Integrated sample, shape (N, dim).
+        """
+        n = x0.shape[0]
+        t = torch.linspace(0, 1, n_steps + 1).to(x0.device).expand(n, -1).T.unsqueeze(-1)  # shape: (n_steps+1, N, 1)
+        x_t = x0
+        for i in range(n_steps - 1):
+            # t=t[i], s=t[i+1]
+            u = self.velocity(x_t, t[i], t[i + 1])
+            # for each step, x_{t+1} = x_t + (s-t) * u_\theta(x_t, t, s)
+            x_t += u * (t[i + 1] - t[i])
+        return x_t

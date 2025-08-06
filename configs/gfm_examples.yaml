@@ -8,7 +8,7 @@ defaults:
 
 hydra:
   run:
-    dir: output/${example.name}/${now:%m-%d %H:%M:%S} ${method.name}
+    dir: output/${example.name}/${now:%m-%d %H:%M}-${method.name}
   job:
     chdir: true
 
@@ -18,6 +18,11 @@ accelerator: cpu
 devices: auto
 
 out_prefix: ../ # this is the project_dir/output/${example_name}
+
+# leave it to null for default final checkpoint, i.e., ${out_prefix}/${method.name}-final.ckpt
+# by providing a checkpoint name, the final checkpoint will be saved to ${out_prefix}/${final_model}.ckpt
+# override test.checkpoint to load a specific checkpoint, i.e., ${out_prefix}/${test.checkpoint}.ckpt
+final_model: ~
 
 #action: train # test
 action: test
