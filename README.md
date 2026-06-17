@@ -41,6 +41,15 @@ If you find this repository useful in your research, please consider citing:
 
 ```
 @inproceedings{
+    li2026gauge,
+    title={Gauge Flow Matching: Efficient Constrained Generative Modeling over General Convex Set and Beyond},
+    author={Xinpeng Li and Enming Liang and Minghua Chen},
+    booktitle={The Fourteenth International Conference on Learning Representations},
+    year={2026},
+    url={https://openreview.net/forum?id=vxq1OnaAMq}
+}
+
+@inproceedings{
     li2025gauge,
     title={Gauge Flow Matching for Efficient Constrained Generative Modeling over General Convex Set},
     author={Xinpeng Li and Enming Liang and Minghua Chen},
